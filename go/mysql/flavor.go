@@ -19,6 +19,7 @@ package mysql
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -103,6 +104,10 @@ const mariaDBVersionString = "MariaDB"
 // as well (not matching what c.ServerVersion is, but matching after we remove
 // the prefix).
 func (c *Conn) fillFlavor() {
+	if os.Getenv("MYSQL_FLAVOR") == "rds" {
+		c.flavor = &rdsFlavor{}
+		return
+	}
 	if strings.HasPrefix(c.ServerVersion, mariaDBReplicationHackPrefix) {
 		c.ServerVersion = c.ServerVersion[len(mariaDBReplicationHackPrefix):]
 		c.flavor = mariadbFlavor{}

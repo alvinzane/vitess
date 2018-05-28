@@ -189,7 +189,7 @@ func (blp *BinlogPlayer) writeRecoveryPosition(tx *binlogdatapb.BinlogTransactio
 		return fmt.Errorf("Error %v in writing recovery info %v", err, updateRecovery)
 	}
 	if qr.RowsAffected != 1 {
-		return fmt.Errorf("Cannot update blp_recovery table, affected %v rows", qr.RowsAffected)
+		return fmt.Errorf("Cannot update blp_recovery table: '%s' affected %v rows", updateRecovery, qr.RowsAffected)
 	}
 
 	// Update position after successful write.

@@ -48,8 +48,8 @@ func (flv *rdsFlavor) masterGTIDSet(c *Conn) (GTIDSet, error) {
 		return nil, err
 	}
 	return rdsGTID{
-		file: resultMap["Master_Log_File"],
-		pos:  resultMap["Read_Master_Log_Pos"],
+		file: resultMap["Relay_Master_Log_File"],
+		pos:  resultMap["Exec_Master_Log_Pos"],
 	}, nil
 }
 
@@ -85,40 +85,49 @@ func (flv *rdsFlavor) readBinlogEvent(c *Conn) (BinlogEvent, error) {
 		return ret, nil
 	}
 
-	result, err := c.ReadPacket()
-	if err != nil {
-		return nil, err
-	}
-	switch result[0] {
-	case EOFPacket:
-		return nil, NewSQLError(CRServerLost, SSUnknownSQLState, "%v", io.EOF)
-	case ErrPacket:
-		return nil, ParseErrorPacket(result)
-	}
-	event := &rdsBinlogEvent{binlogEvent: binlogEvent(result[1:])}
-	switch {
-	case event.IsFormatDescription():
-		format, err := event.Format()
+	for {
+		result, err := c.ReadPacket()
 		if err != nil {
 			return nil, err
 		}
-		flv.format = format
-	case event.IsRotate():
-		if !flv.format.IsZero() {
-			stripped, _, _ := event.StripChecksum(flv.format)
-			flv.pos, flv.file = stripped.(*rdsBinlogEvent).rotate(flv.format)
-			return newRDSGTIDEvent(flv.file, flv.pos, event.Timestamp()), nil
+		switch result[0] {
+		case EOFPacket:
+			return nil, NewSQLError(CRServerLost, SSUnknownSQLState, "%v", io.EOF)
+		case ErrPacket:
+			return nil, ParseErrorPacket(result)
 		}
-	default:
-		if !flv.format.IsZero() {
-			if v := event.nextPosition(flv.format); v != 0 {
-				flv.pos = v
-				flv.savedEvent = event
-				return newRDSGTIDEvent(flv.file, flv.pos, event.Timestamp()), nil
+
+		event := &rdsBinlogEvent{binlogEvent: binlogEvent(result[1:])}
+		et := event.Type()
+		switch {
+		case et == eGTIDEvent || et == eAnonymousGTIDEvent || et == ePreviousGTIDsEvent:
+			// Don't transmit fake or irrelevant events because they
+			// mess up the binlog coordinates.
+			continue
+		case event.IsFormatDescription():
+			format, err := event.Format()
+			if err != nil {
+				return nil, err
+			}
+			flv.format = format
+		case event.IsRotate():
+			if !flv.format.IsZero() {
+				stripped, _, _ := event.StripChecksum(flv.format)
+				flv.pos, flv.file = stripped.(*rdsBinlogEvent).rotate(flv.format)
+				// No need to transmit. Just update the internal position for the next event.
+				continue
+			}
+		default:
+			if !flv.format.IsZero() {
+				if v := event.nextPosition(flv.format); v != 0 {
+					flv.pos = v
+					flv.savedEvent = event
+					return newRDSGTIDEvent(flv.file, flv.pos, event.Timestamp()), nil
+				}
 			}
 		}
+		return event, nil
 	}
-	return event, nil
 }
 
 // resetReplicationCommands is part of the Flavor interface.
@@ -159,8 +168,8 @@ func (flv *rdsFlavor) status(c *Conn) (SlaveStatus, error) {
 
 	status := parseSlaveStatus(resultMap)
 	status.Position.GTIDSet = rdsGTID{
-		file: resultMap["Master_Log_File"],
-		pos:  resultMap["Read_Master_Log_Pos"],
+		file: resultMap["Relay_Master_Log_File"],
+		pos:  resultMap["Exec_Master_Log_Pos"],
 	}
 	return status, nil
 }

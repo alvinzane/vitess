@@ -110,7 +110,11 @@ func (mysqld *Mysqld) executeFetchContext(ctx context.Context, conn *dbconnpool.
 	go func() {
 		defer close(done)
 
-		qr, executeErr = conn.ExecuteFetch(query, maxrows, wantfields)
+		more := false
+		qr, more, executeErr = conn.ExecuteFetchMulti(query, maxrows, wantfields)
+		for more {
+			qr, more, executeErr = conn.ReadQueryResult(maxrows, wantfields)
+		}
 	}()
 
 	// Wait for either the query or the context to be done.

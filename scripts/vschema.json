@@ -1,0 +1,28 @@
+{
+  "sharded": true,
+  "vindexes": {
+    "hash": {
+      "type": "hash"
+    }
+  },
+  "tables": {
+    "sbtest1": {
+      "column_vindexes": [
+        {
+          "column": "id",
+          "name": "hash"
+        }
+      ],
+      "columns": [
+        {
+          "name": "c",
+          "type": "CHAR"
+        },
+        {
+          "name": "pad",
+          "type": "CHAR"
+        }
+      ]
+    }
+  }
+}

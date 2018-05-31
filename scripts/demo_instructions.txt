@@ -1,0 +1,34 @@
+Instructions for running resharding demo on aurora
+
+
+Pre-setup
+* Procure a machine that will act as command center for the demo (t2.micro).
+* Install vitess tree and binaries.
+* Install sysbench from here: https://github.com/akopytov/sysbench. DO NOT USE standard apt-get.
+
+Instance setup
+* Create a security security group (vtdata) that allows open access to all ports. It will be used
+  to make servers accessible from outside.
+* Create parameter group vta57 (vt auurora for 5.7) based on aurora-mysql5.7. Change
+  binlog_format to ROW.
+* Modify and launch aurora0.sh, aurora0080.sh, and aurora0080.sh. Follow instructions that are
+  echoed. This will setup source and target dbs for resharding.
+* Bring up remote hosts for hosting vttablets and vtgates. I used four c5.large: one for each
+  pair of vttablets, and one for vtgate. Make sure to add vtdata as security group to the new
+  instances.
+* Copy ~/dev/bin to remote:~/dev/bin
+* In examples/local: Launch zk-up.sh, vtctld-up.sh. Verify that they came up locally.
+* Copy vttablet-???.sh scripts to various remote hosts. Location: ~/dev/scripts
+* Modfy rvttablet* to point at those hosts, and launch them. Verify they show up in vtctld.
+* Issue ./lvtctl.sh TabletExternallyReparented cell1-100, 200 and 300.
+* Copy vtgate*.sh to the remote host, and launch using rvtgate*.sh
+* Cluster should be up and running. Verify in vtctld.
+* Issue ./lvtctl.sh ApplyVSchema -vschema="$(cat ~/dev/script/vschema.json)" sb
+* ./sysprep.sh will prepare the cluster for load testing
+* ./sysrun.sh will generate load.
+
+Resharding:
+* ./clone.sh: starts split clone
+* ./diff1.sh and ./diff2.sh perform split diffs.
+* When ready, issue ./lvtctld.sh MigrateServedTypes sb/0 rdonly, replica and master.
+* Restart ./sysrun.sh if it failed.

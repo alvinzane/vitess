@@ -170,6 +170,8 @@ const (
 	SelectNext
 	// SelectDBA is for executing a DBA statement.
 	SelectDBA
+	// SelectReference
+	SelectReference
 )
 
 var routeName = map[RouteOpcode]string{
@@ -180,6 +182,7 @@ var routeName = map[RouteOpcode]string{
 	SelectScatter:     "SelectScatter",
 	SelectNext:        "SelectNext",
 	SelectDBA:         "SelectDBA",
+	SelectReference:   "SelectReference",
 }
 
 var (

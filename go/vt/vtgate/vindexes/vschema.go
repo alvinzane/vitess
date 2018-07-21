@@ -42,6 +42,7 @@ type VSchema struct {
 // Table represents a table in VSchema.
 type Table struct {
 	IsSequence              bool                 `json:"is_sequence,omitempty"`
+	IsReference             bool                 `json:"is_reference,omitempty"`
 	Name                    sqlparser.TableIdent `json:"name"`
 	Keyspace                *Keyspace            `json:"-"`
 	ColumnVindexes          []*ColumnVindex      `json:"column_vindexes,omitempty"`
@@ -206,19 +207,24 @@ outer:
 				vschema.uniqueTables[tname] = t
 			}
 			vschema.Keyspaces[ksname].Tables[tname] = t
-			if table.Type == "sequence" {
+			switch table.Type {
+			case "reference":
+				t.IsReference = true
+			case "sequence":
 				t.IsSequence = true
-			}
-			if table.Pinned != "" {
-				decoded, err := hex.DecodeString(table.Pinned)
-				if err != nil {
-					ksvschema.Error = fmt.Errorf("could not decode the keyspace id for pin: %v", err)
+				fallthrough
+			default:
+				if table.Pinned != "" {
+					decoded, err := hex.DecodeString(table.Pinned)
+					if err != nil {
+						ksvschema.Error = fmt.Errorf("could not decode the keyspace id for pin: %v", err)
+						continue outer
+					}
+					t.Pinned = decoded
+				} else if keyspace.Sharded && len(table.ColumnVindexes) == 0 {
+					ksvschema.Error = fmt.Errorf("missing primary col vindex for table: %s", tname)
 					continue outer
 				}
-				t.Pinned = decoded
-			} else if keyspace.Sharded && len(table.ColumnVindexes) == 0 {
-				ksvschema.Error = fmt.Errorf("missing primary col vindex for table: %s", tname)
-				continue outer
 			}
 
 			// Initialize Columns.

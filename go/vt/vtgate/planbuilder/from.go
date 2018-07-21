@@ -172,6 +172,13 @@ func (pb *primitiveBuilder) buildTablePrimitive(tableExpr *sqlparser.AliasedTabl
 		rb.ERoute = engine.NewSimpleRoute(engine.SelectUnsharded, table.Keyspace)
 		return nil
 	}
+	if table.IsReference {
+		rb.ERoute = &engine.Route{
+			Opcode:   engine.SelectReference,
+			Keyspace: table.Keyspace,
+		}
+		return nil
+	}
 	if table.Pinned == nil {
 		rb.ERoute = engine.NewSimpleRoute(engine.SelectScatter, table.Keyspace)
 		rb.ERoute.TargetDestination = destTarget
@@ -246,6 +253,11 @@ func (pb *primitiveBuilder) join(rpb *primitiveBuilder, ajoin *sqlparser.JoinTab
 				return pb.mergeRoutes(rpb, ajoin)
 			}
 			return errIntermixingUnsupported
+		}
+
+		// We can join locally for reference tables.
+		if rRoute.ERoute.Opcode == engine.SelectReference {
+			return pb.mergeRoutes(rpb, ajoin)
 		}
 
 		// Both route are sharded routes. For ',' joins (ajoin==nil), don't

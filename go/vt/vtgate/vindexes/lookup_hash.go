@@ -44,9 +44,10 @@ func init() {
 // NonUnique and a Lookup.
 // Warning: This Vindex is being depcreated in favor of Lookup
 type LookupHash struct {
-	name      string
-	writeOnly bool
-	lkp       lookupInternal
+	name       string
+	writeOnly  bool
+	dontVerify bool
+	lkp        lookupInternal
 }
 
 // NewLookupHash creates a LookupHash vindex.
@@ -66,6 +67,10 @@ func NewLookupHash(name string, m map[string]string) (Vindex, error) {
 		return nil, err
 	}
 	lh.writeOnly, err = boolFromMap(m, "write_only")
+	if err != nil {
+		return nil, err
+	}
+	lh.dontVerify, err = boolFromMap(m, "dont_verify")
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +138,7 @@ func (lh *LookupHash) Map(vcursor VCursor, ids []sqltypes.Value) ([]key.Destinat
 
 // Verify returns true if ids maps to ksids.
 func (lh *LookupHash) Verify(vcursor VCursor, ids []sqltypes.Value, ksids [][]byte) ([]bool, error) {
-	if lh.writeOnly {
+	if lh.writeOnly || lh.dontVerify {
 		out := make([]bool, len(ids))
 		for i := range ids {
 			out[i] = true

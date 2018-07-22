@@ -414,37 +414,8 @@ func (bls *Streamer) parseEvents(ctx context.Context, events <-chan mysql.Binlog
 					return pos, err
 				}
 			default: // BL_DDL, BL_SET, BL_INSERT, BL_UPDATE, BL_DELETE, BL_UNRECOGNIZED
-				if q.Database != "" && q.Database != bls.cp.DbName {
-					// Skip cross-db statements.
-					continue
-				}
-				setTimestamp := &binlogdatapb.BinlogTransaction_Statement{
-					Category: binlogdatapb.BinlogTransaction_Statement_BL_SET,
-					Sql:      []byte(fmt.Sprintf("SET TIMESTAMP=%d", ev.Timestamp())),
-				}
-				statement := &binlogdatapb.BinlogTransaction_Statement{
-					Category: cat,
-					Sql:      []byte(q.SQL),
-				}
-				// If the statement has a charset and it's different than our client's
-				// default charset, send it along with the statement.
-				// If our client hasn't told us its charset, always send it.
-				if bls.clientCharset == nil || (q.Charset != nil && !proto.Equal(q.Charset, bls.clientCharset)) {
-					setTimestamp.Charset = q.Charset
-					statement.Charset = q.Charset
-				}
-				statements = append(statements, FullBinlogStatement{
-					Statement: setTimestamp,
-				}, FullBinlogStatement{
-					Statement: statement,
-				})
-				if autocommit {
-					if err = commit(ev.Timestamp()); err != nil {
-						return pos, err
-					}
-				}
+				continue
 			}
-			return pos, fmt.Errorf("query event not supported for demo: %#v", ev)
 		case ev.IsPreviousGTIDs(): // PREVIOUS_GTIDS_EVENT
 			// MySQL 5.6 only: The Binlogs contain an
 			// event that gives us all the previously

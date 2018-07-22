@@ -226,7 +226,14 @@ func (blp *BinlogPlayer) applyEvents(ctx context.Context) error {
 	defer t.Close()
 
 	// Log the mode of operation and when the player stops.
-	if len(blp.tables) > 0 {
+	if blp.filter != nil {
+		log.Infof("BinlogPlayer client %v for tables %v starting @ '%v', server: %v",
+			blp.uid,
+			blp.filter,
+			blp.position,
+			blp.tablet,
+		)
+	} else if len(blp.tables) > 0 {
 		log.Infof("BinlogPlayer client %v for tables %v starting @ '%v', server: %v",
 			blp.uid,
 			blp.tables,

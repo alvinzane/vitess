@@ -1,0 +1,7 @@
+{
+  "sharded": false,
+  "tables": {
+    "name_user_idx": {},
+    "rates": {}
+  }
+}

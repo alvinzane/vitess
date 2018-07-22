@@ -1,0 +1,29 @@
+{
+  "sharded": true,
+  "vindexes": {
+    "md5": {
+      "type": "unicode_loose_md5"
+    }
+  },
+  "tables": {
+    "user": {
+      "column_vindexes": [
+        {
+          "column": "name",
+          "name": "md5"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id"
+        },{
+          "name": "name"
+        },{
+          "name": "currency"
+        },{
+          "name": "amount"
+        }
+      ]
+    }
+  }
+}

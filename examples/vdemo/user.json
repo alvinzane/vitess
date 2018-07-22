@@ -1,0 +1,52 @@
+{
+  "sharded": true,
+  "vindexes": {
+    "hash": {
+      "type": "hash"
+    },
+    "name_user_vdx": {
+      "type": "lookup_hash",
+      "params": {
+        "table": "name_user_idx",
+        "from": "name",
+        "to": "id",
+        "dont_verify": "true"
+      }
+    }
+  },
+  "tables": {
+    "user": {
+      "column_vindexes": [
+        {
+          "column": "id",
+          "name": "hash"
+        },
+        {
+          "column": "name",
+          "name": "name_user_vdx"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id"
+        },{
+          "name": "name"
+        },{
+          "name": "currency"
+        },{
+          "name": "amount"
+        }
+      ]
+    },
+    "rates": {
+      "type": "reference",
+      "columns": [
+        {
+          "name": "currency"
+        },{
+          "name": "rate"
+        }
+      ]
+    }
+  }
+}

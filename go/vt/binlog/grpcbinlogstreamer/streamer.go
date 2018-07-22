@@ -36,6 +36,16 @@ func New(updateStream binlog.UpdateStream) *UpdateStream {
 	return &UpdateStream{updateStream}
 }
 
+// StreamFilter is part of the binlogservicepb.UpdateStreamServer interface
+func (server *UpdateStream) StreamFilter(req *binlogdatapb.StreamFilterRequest, stream binlogservicepb.UpdateStream_StreamFilterServer) (err error) {
+	defer server.updateStream.HandlePanic(&err)
+	return server.updateStream.StreamFilter(stream.Context(), req.Position, req.Filter, req.Charset, func(reply *binlogdatapb.BinlogTransaction) error {
+		return stream.Send(&binlogdatapb.StreamFilterResponse{
+			BinlogTransaction: reply,
+		})
+	})
+}
+
 // StreamKeyRange is part of the binlogservicepb.UpdateStreamServer interface
 func (server *UpdateStream) StreamKeyRange(req *binlogdatapb.StreamKeyRangeRequest, stream binlogservicepb.UpdateStream_StreamKeyRangeServer) (err error) {
 	defer server.updateStream.HandlePanic(&err)

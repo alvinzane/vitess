@@ -64,6 +64,31 @@ func (client *client) Close() {
 	client.cc.Close()
 }
 
+type serveStreamFilterAdapter struct {
+	stream binlogservicepb.UpdateStream_StreamFilterClient
+}
+
+func (s *serveStreamFilterAdapter) Recv() (*binlogdatapb.BinlogTransaction, error) {
+	r, err := s.stream.Recv()
+	if err != nil {
+		return nil, err
+	}
+	return r.BinlogTransaction, nil
+}
+
+func (client *client) StreamFilter(ctx context.Context, position string, filter *binlogdatapb.Filter, charset *binlogdatapb.Charset) (binlogplayer.BinlogTransactionStream, error) {
+	query := &binlogdatapb.StreamFilterRequest{
+		Position: position,
+		Filter:   filter,
+		Charset:  charset,
+	}
+	stream, err := client.c.StreamFilter(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	return &serveStreamFilterAdapter{stream}, nil
+}
+
 type serveStreamKeyRangeAdapter struct {
 	stream binlogservicepb.UpdateStream_StreamKeyRangeClient
 }

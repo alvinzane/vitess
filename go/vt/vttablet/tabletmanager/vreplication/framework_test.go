@@ -158,6 +158,12 @@ func (fbc *fakeBinlogClient) Dial(tablet *topodatapb.Tablet) error {
 func (fbc *fakeBinlogClient) Close() {
 }
 
+func (fbc *fakeBinlogClient) StreamFilter(ctx context.Context, position string, filter *binlogdatapb.Filter, charset *binlogdatapb.Charset) (binlogplayer.BinlogTransactionStream, error) {
+	fbc.lastPos = position
+	fbc.lastCharset = charset
+	return &btStream{ctx: ctx}, nil
+}
+
 func (fbc *fakeBinlogClient) StreamTables(ctx context.Context, position string, tables []string, charset *binlogdatapb.Charset) (binlogplayer.BinlogTransactionStream, error) {
 	fbc.lastPos = position
 	fbc.lastTables = tables

@@ -28,9 +28,11 @@ import (
 	"vitess.io/vitess/go/tb"
 	"vitess.io/vitess/go/vt/log"
 	"vitess.io/vitess/go/vt/topo"
+	"vitess.io/vitess/go/vt/vtgate/vindexes"
 	"vitess.io/vitess/go/vt/vttablet/tabletserver/schema"
 
 	binlogdatapb "vitess.io/vitess/go/vt/proto/binlogdata"
+	querypb "vitess.io/vitess/go/vt/proto/query"
 	topodatapb "vitess.io/vitess/go/vt/proto/topodata"
 )
 
@@ -49,6 +51,8 @@ var usStateNames = map[int64]string{
 var (
 	streamCount          = stats.NewCountersWithSingleLabel("UpdateStreamStreamCount", "update stream count", "type")
 	updateStreamErrors   = stats.NewCountersWithSingleLabel("UpdateStreamErrors", "update stream error count", "type")
+	filterStatements     = stats.NewCounter("UpdateStreamFilterStatements", "update stream key range statement count")
+	filterTransactions   = stats.NewCounter("UpdateStreamFilterTransactions", "update stream key range transaction count")
 	keyrangeStatements   = stats.NewCounter("UpdateStreamKeyRangeStatements", "update stream key range statement count")
 	keyrangeTransactions = stats.NewCounter("UpdateStreamKeyRangeTransactions", "update stream key range transaction count")
 	tablesStatements     = stats.NewCounter("UpdateStreamTablesStatements", "update stream table statement count")
@@ -231,6 +235,57 @@ func (updateStream *UpdateStreamImpl) Disable() {
 // IsEnabled returns true if UpdateStreamImpl is enabled
 func (updateStream *UpdateStreamImpl) IsEnabled() bool {
 	return updateStream.state.Get() == usEnabled
+}
+
+// StreamFilter is part of the UpdateStream interface
+func (updateStream *UpdateStreamImpl) StreamFilter(ctx context.Context, position string, filter *binlogdatapb.Filter, charset *binlogdatapb.Charset, callback func(trans *binlogdatapb.BinlogTransaction) error) (err error) {
+	pos, err := mysql.DecodePosition(position)
+	if err != nil {
+		return err
+	}
+
+	updateStream.actionLock.Lock()
+	if !updateStream.IsEnabled() {
+		updateStream.actionLock.Unlock()
+		log.Errorf("Unable to serve client request: Update stream service is not enabled")
+		return fmt.Errorf("update stream service is not enabled")
+	}
+	updateStream.stateWaitGroup.Add(1)
+	updateStream.actionLock.Unlock()
+	defer updateStream.stateWaitGroup.Done()
+
+	streamCount.Add("Filter", 1)
+	defer streamCount.Add("Filter", -1)
+	log.Infof("ServeUpdateStream starting @ %#v", pos)
+
+	vschema, err := vindexes.BuildKeyspaceSchema(filter.Vschema, "ks")
+	if err != nil {
+		return err
+	}
+
+	bls := NewStreamer(updateStream.cp, updateStream.se, charset, pos, 0, func(eventToken *querypb.EventToken, statements []FullBinlogStatement) error {
+		filterStatements.Add(int64(len(statements)))
+		filterTransactions.Add(1)
+		filtered := make([]*binlogdatapb.BinlogTransaction_Statement, 0, len(statements))
+		for _, statement := range statements {
+			filtered = append(filtered, statement.Statement)
+		}
+		return callback(&binlogdatapb.BinlogTransaction{
+			EventToken: eventToken,
+			Statements: filtered,
+		})
+	})
+	if err != nil {
+		return fmt.Errorf("newKeyspaceIDResolverFactory failed: %v", err)
+	}
+	bls.vschema = vschema
+	bls.keyRange = filter.KeyRange
+
+	streamCtx, cancel := context.WithCancel(ctx)
+	i := updateStream.streams.Add(cancel)
+	defer updateStream.streams.Delete(i)
+
+	return bls.Stream(streamCtx)
 }
 
 // StreamKeyRange is part of the UpdateStream interface

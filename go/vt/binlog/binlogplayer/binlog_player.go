@@ -102,6 +102,8 @@ type BinlogPlayer struct {
 	tablet   *topodatapb.Tablet
 	dbClient DBClient
 
+	filter *binlogdatapb.Filter
+
 	// for key range base requests
 	keyRange *topodatapb.KeyRange
 
@@ -116,6 +118,22 @@ type BinlogPlayer struct {
 	defaultCharset *binlogdatapb.Charset
 	currentCharset *binlogdatapb.Charset
 	deadlockRetry  time.Duration
+}
+
+// NewBinlogPlayerFilter returns a new BinlogPlayer pointing at the server
+// replicating the provided filter, starting at the startPosition,
+// and updating _vt.vreplication with uid=startPosition.Uid.
+// If !stopPosition.IsZero(), it will stop when reaching that position.
+func NewBinlogPlayerFilter(dbClient DBClient, tablet *topodatapb.Tablet, filter *binlogdatapb.Filter, uid uint32, blplStats *Stats) *BinlogPlayer {
+	result := &BinlogPlayer{
+		tablet:        tablet,
+		dbClient:      dbClient,
+		filter:        filter,
+		uid:           uid,
+		blplStats:     blplStats,
+		deadlockRetry: 1 * time.Second,
+	}
+	return result
 }
 
 // NewBinlogPlayerKeyRange returns a new BinlogPlayer pointing at the server
@@ -284,7 +302,9 @@ func (blp *BinlogPlayer) applyEvents(ctx context.Context) error {
 	}
 
 	var stream BinlogTransactionStream
-	if len(blp.tables) > 0 {
+	if blp.filter != nil {
+		stream, err = blplClient.StreamFilter(ctx, mysql.EncodePosition(blp.position), blp.filter, blp.defaultCharset)
+	} else if len(blp.tables) > 0 {
 		stream, err = blplClient.StreamTables(ctx, mysql.EncodePosition(blp.position), blp.tables, blp.defaultCharset)
 	} else {
 		stream, err = blplClient.StreamKeyRange(ctx, mysql.EncodePosition(blp.position), blp.keyRange, blp.defaultCharset)

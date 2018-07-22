@@ -14,6 +14,11 @@ class UpdateStreamStub(object):
     Args:
       channel: A grpc.Channel.
     """
+    self.StreamFilter = channel.unary_stream(
+        '/binlogservice.UpdateStream/StreamFilter',
+        request_serializer=binlogdata__pb2.StreamFilterRequest.SerializeToString,
+        response_deserializer=binlogdata__pb2.StreamFilterResponse.FromString,
+        )
     self.StreamKeyRange = channel.unary_stream(
         '/binlogservice.UpdateStream/StreamKeyRange',
         request_serializer=binlogdata__pb2.StreamKeyRangeRequest.SerializeToString,
@@ -29,6 +34,13 @@ class UpdateStreamStub(object):
 class UpdateStreamServicer(object):
   """UpdateStream is the RPC version of binlog.UpdateStream.
   """
+
+  def StreamFilter(self, request, context):
+    # missing associated documentation comment in .proto file
+    pass
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
 
   def StreamKeyRange(self, request, context):
     """StreamKeyRange returns the binlog transactions related to
@@ -49,6 +61,11 @@ class UpdateStreamServicer(object):
 
 def add_UpdateStreamServicer_to_server(servicer, server):
   rpc_method_handlers = {
+      'StreamFilter': grpc.unary_stream_rpc_method_handler(
+          servicer.StreamFilter,
+          request_deserializer=binlogdata__pb2.StreamFilterRequest.FromString,
+          response_serializer=binlogdata__pb2.StreamFilterResponse.SerializeToString,
+      ),
       'StreamKeyRange': grpc.unary_stream_rpc_method_handler(
           servicer.StreamKeyRange,
           request_deserializer=binlogdata__pb2.StreamKeyRangeRequest.FromString,

@@ -48,6 +48,8 @@ type Client interface {
 	// Close the connection
 	Close()
 
+	StreamFilter(ctx context.Context, position string, filter *binlogdatapb.Filter, charset *binlogdatapb.Charset) (BinlogTransactionStream, error)
+
 	// Ask the server to stream updates related to the provided tables.
 	// Should return context.Canceled if the context is canceled.
 	StreamTables(ctx context.Context, position string, tables []string, charset *binlogdatapb.Charset) (BinlogTransactionStream, error)

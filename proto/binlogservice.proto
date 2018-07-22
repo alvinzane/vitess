@@ -27,6 +27,7 @@ import "binlogdata.proto";
 
 // UpdateStream is the RPC version of binlog.UpdateStream.
 service UpdateStream {
+  rpc StreamFilter(binlogdata.StreamFilterRequest) returns (stream binlogdata.StreamFilterResponse) {};
   // StreamKeyRange returns the binlog transactions related to
   // the specified Keyrange.
   rpc StreamKeyRange(binlogdata.StreamKeyRangeRequest) returns (stream binlogdata.StreamKeyRangeResponse) {};

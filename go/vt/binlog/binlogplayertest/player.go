@@ -96,6 +96,11 @@ var testBinlogTransaction = &binlogdatapb.BinlogTransaction{
 	},
 }
 
+// StreamFilter dummy
+func (fake *FakeBinlogStreamer) StreamFilter(ctx context.Context, position string, filter *binlogdatapb.Filter, charset *binlogdatapb.Charset, callback func(reply *binlogdatapb.BinlogTransaction) error) error {
+	panic("unimplemented")
+}
+
 // StreamKeyRange is part of the the UpdateStream interface
 func (fake *FakeBinlogStreamer) StreamKeyRange(ctx context.Context, position string, keyRange *topodatapb.KeyRange, charset *binlogdatapb.Charset, callback func(reply *binlogdatapb.BinlogTransaction) error) error {
 	if fake.panics {

@@ -167,6 +167,10 @@ func (ct *controller) runBlp(ctx context.Context) (err error) {
 	}
 	ct.sourceTablet.Set(tablet.Alias.String())
 
+	if ct.source.Filter != nil {
+		player := binlogplayer.NewBinlogPlayerFilter(dbClient, tablet, ct.source.Filter, ct.id, ct.blpStats)
+		return player.ApplyBinlogEvents(ctx)
+	}
 	if len(ct.source.Tables) > 0 {
 		// Table names can have search patterns. Resolve them against the schema.
 		tables, err := mysqlctl.ResolveTables(ct.mysqld, dbClient.DBName(), ct.source.Tables)

@@ -20,7 +20,11 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='binlogservice.proto',
   package='binlogservice',
   syntax='proto3',
+<<<<<<< HEAD
   serialized_pb=_b('\n\x13\x62inlogservice.proto\x12\rbinlogservice\x1a\x10\x62inlogdata.proto2\xc2\x01\n\x0cUpdateStream\x12[\n\x0eStreamKeyRange\x12!.binlogdata.StreamKeyRangeRequest\x1a\".binlogdata.StreamKeyRangeResponse\"\x00\x30\x01\x12U\n\x0cStreamTables\x12\x1f.binlogdata.StreamTablesRequest\x1a .binlogdata.StreamTablesResponse\"\x00\x30\x01\x42,Z*vitess.io/vitess/go/vt/proto/binlogserviceb\x06proto3')
+=======
+  serialized_pb=_b('\n\x13\x62inlogservice.proto\x12\rbinlogservice\x1a\x10\x62inlogdata.proto2\x99\x02\n\x0cUpdateStream\x12U\n\x0cStreamFilter\x12\x1f.binlogdata.StreamFilterRequest\x1a .binlogdata.StreamFilterResponse\"\x00\x30\x01\x12[\n\x0eStreamKeyRange\x12!.binlogdata.StreamKeyRangeRequest\x1a\".binlogdata.StreamKeyRangeResponse\"\x00\x30\x01\x12U\n\x0cStreamTables\x12\x1f.binlogdata.StreamTablesRequest\x1a .binlogdata.StreamTablesResponse\"\x00\x30\x01\x62\x06proto3')
+>>>>>>> 9e657b0... vdemo: initial cut
   ,
   dependencies=[binlogdata__pb2.DESCRIPTOR,])
 
@@ -39,12 +43,21 @@ _UPDATESTREAM = _descriptor.ServiceDescriptor(
   index=0,
   options=None,
   serialized_start=57,
-  serialized_end=251,
+  serialized_end=338,
   methods=[
+  _descriptor.MethodDescriptor(
+    name='StreamFilter',
+    full_name='binlogservice.UpdateStream.StreamFilter',
+    index=0,
+    containing_service=None,
+    input_type=binlogdata__pb2._STREAMFILTERREQUEST,
+    output_type=binlogdata__pb2._STREAMFILTERRESPONSE,
+    options=None,
+  ),
   _descriptor.MethodDescriptor(
     name='StreamKeyRange',
     full_name='binlogservice.UpdateStream.StreamKeyRange',
-    index=0,
+    index=1,
     containing_service=None,
     input_type=binlogdata__pb2._STREAMKEYRANGEREQUEST,
     output_type=binlogdata__pb2._STREAMKEYRANGERESPONSE,
@@ -53,7 +66,7 @@ _UPDATESTREAM = _descriptor.ServiceDescriptor(
   _descriptor.MethodDescriptor(
     name='StreamTables',
     full_name='binlogservice.UpdateStream.StreamTables',
-    index=1,
+    index=2,
     containing_service=None,
     input_type=binlogdata__pb2._STREAMTABLESREQUEST,
     output_type=binlogdata__pb2._STREAMTABLESRESPONSE,

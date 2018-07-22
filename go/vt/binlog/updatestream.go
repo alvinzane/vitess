@@ -25,6 +25,8 @@ import (
 
 // UpdateStream is the interface for the binlog server
 type UpdateStream interface {
+	// StreamKeyRange streams events based on a generic rule
+	StreamFilter(ctx context.Context, position string, filter *binlogdatapb.Filter, charset *binlogdatapb.Charset, callback func(trans *binlogdatapb.BinlogTransaction) error) error
 	// StreamKeyRange streams events related to a KeyRange only
 	StreamKeyRange(ctx context.Context, position string, keyRange *topodatapb.KeyRange, charset *binlogdatapb.Charset, callback func(trans *binlogdatapb.BinlogTransaction) error) error
 

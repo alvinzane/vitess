@@ -6,7 +6,7 @@
     }
   },
   "tables": {
-    "user": {
+    "nuser": {
       "column_vindexes": [
         {
           "column": "name",

@@ -28,7 +28,6 @@ import (
 	"vitess.io/vitess/go/tb"
 	"vitess.io/vitess/go/vt/log"
 	"vitess.io/vitess/go/vt/topo"
-	"vitess.io/vitess/go/vt/vtgate/vindexes"
 	"vitess.io/vitess/go/vt/vttablet/tabletserver/schema"
 
 	binlogdatapb "vitess.io/vitess/go/vt/proto/binlogdata"
@@ -258,11 +257,6 @@ func (updateStream *UpdateStreamImpl) StreamFilter(ctx context.Context, position
 	defer streamCount.Add("Filter", -1)
 	log.Infof("ServeUpdateStream starting @ %#v", pos)
 
-	vschema, err := vindexes.BuildKeyspaceSchema(filter.Vschema, "ks")
-	if err != nil {
-		return err
-	}
-
 	bls := NewStreamer(updateStream.cp, updateStream.se, charset, pos, 0, func(eventToken *querypb.EventToken, statements []FullBinlogStatement) error {
 		filterStatements.Add(int64(len(statements)))
 		filterTransactions.Add(1)
@@ -275,11 +269,9 @@ func (updateStream *UpdateStreamImpl) StreamFilter(ctx context.Context, position
 			Statements: filtered,
 		})
 	})
-	if err != nil {
-		return fmt.Errorf("newKeyspaceIDResolverFactory failed: %v", err)
+	if err := bls.SetFilter(filter.TableMap); err != nil {
+		return err
 	}
-	bls.vschema = vschema
-	bls.keyRange = filter.KeyRange
 
 	streamCtx, cancel := context.WithCancel(ctx)
 	i := updateStream.streams.Add(cancel)

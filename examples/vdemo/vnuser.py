@@ -22,7 +22,7 @@ import MySQLdb as db
 
 import positions
 
-source = """keyspace:"user" shard:"-80" filter:<vschema:<vindexes:<key:"md5" value:<type:"unicode_loose_md5" > > tables:<key:"user" value:<column_vindexes:<column:"name" name:"md5" > columns:<name:"id" > columns:<name:"name" > columns:<name:"currency" > columns:<name:"amount" > > > > key_range:<end:"\200" > >"""
+source = """keyspace:"user" shard:"-80" filter:<table_map:<key:"nuser" value:"select * from user where in_keyrange(name, \\'unicode_loose_md5\\', \\'-80\\')" > >"""
 cmd = [
   './lvtctl.sh',
   'VReplicationExec',
@@ -35,7 +35,7 @@ cmd = [
 print "executing:", cmd
 subprocess.call(cmd)
 
-source = """keyspace:"user" shard:"80-" filter:<vschema:<vindexes:<key:"md5" value:<type:"unicode_loose_md5" > > tables:<key:"user" value:<column_vindexes:<column:"name" name:"md5" > columns:<name:"id" > columns:<name:"name" > columns:<name:"currency" > columns:<name:"amount" > > > > key_range:<end:"\200" > >"""
+source = """keyspace:"user" shard:"80-" filter:<table_map:<key:"nuser" value:"select * from user where in_keyrange(name, \\'unicode_loose_md5\\', \\'-80\\')" > >"""
 cmd = [
   './lvtctl.sh',
   'VReplicationExec',
@@ -48,7 +48,7 @@ cmd = [
 print "executing:", cmd
 subprocess.call(cmd)
 
-source = """keyspace:"user" shard:"-80" filter:<vschema:<vindexes:<key:"md5" value:<type:"unicode_loose_md5" > > tables:<key:"user" value:<column_vindexes:<column:"name" name:"md5" > columns:<name:"id" > columns:<name:"name" > columns:<name:"currency" > columns:<name:"amount" > > > > key_range:<start:"\200" > >"""
+source = """keyspace:"user" shard:"-80" filter:<table_map:<key:"nuser" value:"select * from user where in_keyrange(name, \\'unicode_loose_md5\\', \\'80-\\')" > >"""
 cmd = [
   './lvtctl.sh',
   'VReplicationExec',
@@ -61,7 +61,7 @@ cmd = [
 print "executing:", cmd
 subprocess.call(cmd)
 
-source = """keyspace:"user" shard:"80-" filter:<vschema:<vindexes:<key:"md5" value:<type:"unicode_loose_md5" > > tables:<key:"user" value:<column_vindexes:<column:"name" name:"md5" > columns:<name:"id" > columns:<name:"name" > columns:<name:"currency" > columns:<name:"amount" > > > > key_range:<start:"\200" > >"""
+source = """keyspace:"user" shard:"80-" filter:<table_map:<key:"nuser" value:"select * from user where in_keyrange(name, \\'unicode_loose_md5\\', \\'80-\\')" > >"""
 cmd = [
   './lvtctl.sh',
   'VReplicationExec',

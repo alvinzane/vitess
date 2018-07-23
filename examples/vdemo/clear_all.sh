@@ -18,9 +18,18 @@ VTDATAROOT=/home/sougou/dev/demoroot
 
 mysql -S $VTDATAROOT/vt_0000000100/mysql.sock -u vt_dba -e 'delete from vt_lookup.name_user_idx'
 mysql -S $VTDATAROOT/vt_0000000100/mysql.sock -u vt_dba -e 'delete from vt_lookup.rates'
+mysql -S $VTDATAROOT/vt_0000000100/mysql.sock -u vt_dba -e 'delete from _vt.vreplication'
+
 mysql -S $VTDATAROOT/vt_0000000200/mysql.sock -u vt_dba -e 'delete from vt_user.user'
-mysql -S $VTDATAROOT/vt_0000000200/mysql.sock -u vt_dba -e 'delete from vt_user.rates'
+mysql -S $VTDATAROOT/vt_0000000200/mysql.sock -u vt_dba -e 'delete from vt_user.crates'
+mysql -S $VTDATAROOT/vt_0000000200/mysql.sock -u vt_dba -e 'delete from _vt.vreplication'
+
 mysql -S $VTDATAROOT/vt_0000000300/mysql.sock -u vt_dba -e 'delete from vt_user.user'
-mysql -S $VTDATAROOT/vt_0000000300/mysql.sock -u vt_dba -e 'delete from vt_user.rates'
-mysql -S $VTDATAROOT/vt_0000000400/mysql.sock -u vt_dba -e 'delete from vt_nuser.user'
-mysql -S $VTDATAROOT/vt_0000000500/mysql.sock -u vt_dba -e 'delete from vt_nuser.user'
+mysql -S $VTDATAROOT/vt_0000000300/mysql.sock -u vt_dba -e 'delete from vt_user.crates'
+mysql -S $VTDATAROOT/vt_0000000300/mysql.sock -u vt_dba -e 'delete from _vt.vreplication'
+
+mysql -S $VTDATAROOT/vt_0000000400/mysql.sock -u vt_dba -e 'delete from vt_nuser.nuser'
+mysql -S $VTDATAROOT/vt_0000000400/mysql.sock -u vt_dba -e 'delete from _vt.vreplication'
+
+mysql -S $VTDATAROOT/vt_0000000500/mysql.sock -u vt_dba -e 'delete from vt_nuser.nuser'
+mysql -S $VTDATAROOT/vt_0000000500/mysql.sock -u vt_dba -e 'delete from _vt.vreplication'

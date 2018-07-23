@@ -25,7 +25,6 @@ package binlogdata;
 
 import "query.proto";
 import "topodata.proto";
-import "vschema.proto";
 
 // Charset is the per-statement charset info from a QUERY_EVENT binlog entry.
 message Charset {
@@ -133,8 +132,7 @@ message StreamTablesResponse {
 }
 
 message Filter {
-  vschema.Keyspace vschema = 1;
-  topodata.KeyRange key_range = 2;
+  map<string, string> table_map = 1;
 }
 
 // BinlogSource specifies the source  and filter parameters for

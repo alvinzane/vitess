@@ -15,16 +15,15 @@ _sym_db = _symbol_database.Default()
 
 import query_pb2 as query__pb2
 import topodata_pb2 as topodata__pb2
-import vschema_pb2 as vschema__pb2
 
 
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='binlogdata.proto',
   package='binlogdata',
   syntax='proto3',
-  serialized_pb=_b('\n\x10\x62inlogdata.proto\x12\nbinlogdata\x1a\x0bquery.proto\x1a\x0etopodata.proto\x1a\rvschema.proto\"7\n\x07\x43harset\x12\x0e\n\x06\x63lient\x18\x01 \x01(\x05\x12\x0c\n\x04\x63onn\x18\x02 \x01(\x05\x12\x0e\n\x06server\x18\x03 \x01(\x05\"\xb5\x03\n\x11\x42inlogTransaction\x12;\n\nstatements\x18\x01 \x03(\x0b\x32\'.binlogdata.BinlogTransaction.Statement\x12&\n\x0b\x65vent_token\x18\x04 \x01(\x0b\x32\x11.query.EventToken\x1a\xae\x02\n\tStatement\x12\x42\n\x08\x63\x61tegory\x18\x01 \x01(\x0e\x32\x30.binlogdata.BinlogTransaction.Statement.Category\x12$\n\x07\x63harset\x18\x02 \x01(\x0b\x32\x13.binlogdata.Charset\x12\x0b\n\x03sql\x18\x03 \x01(\x0c\"\xa9\x01\n\x08\x43\x61tegory\x12\x13\n\x0f\x42L_UNRECOGNIZED\x10\x00\x12\x0c\n\x08\x42L_BEGIN\x10\x01\x12\r\n\tBL_COMMIT\x10\x02\x12\x0f\n\x0b\x42L_ROLLBACK\x10\x03\x12\x15\n\x11\x42L_DML_DEPRECATED\x10\x04\x12\n\n\x06\x42L_DDL\x10\x05\x12\n\n\x06\x42L_SET\x10\x06\x12\r\n\tBL_INSERT\x10\x07\x12\r\n\tBL_UPDATE\x10\x08\x12\r\n\tBL_DELETE\x10\tJ\x04\x08\x02\x10\x03J\x04\x08\x03\x10\x04\"q\n\x13StreamFilterRequest\x12\x10\n\x08position\x18\x01 \x01(\t\x12\"\n\x06\x66ilter\x18\x02 \x01(\x0b\x32\x12.binlogdata.Filter\x12$\n\x07\x63harset\x18\x03 \x01(\x0b\x32\x13.binlogdata.Charset\"Q\n\x14StreamFilterResponse\x12\x39\n\x12\x62inlog_transaction\x18\x01 \x01(\x0b\x32\x1d.binlogdata.BinlogTransaction\"v\n\x15StreamKeyRangeRequest\x12\x10\n\x08position\x18\x01 \x01(\t\x12%\n\tkey_range\x18\x02 \x01(\x0b\x32\x12.topodata.KeyRange\x12$\n\x07\x63harset\x18\x03 \x01(\x0b\x32\x13.binlogdata.Charset\"S\n\x16StreamKeyRangeResponse\x12\x39\n\x12\x62inlog_transaction\x18\x01 \x01(\x0b\x32\x1d.binlogdata.BinlogTransaction\"]\n\x13StreamTablesRequest\x12\x10\n\x08position\x18\x01 \x01(\t\x12\x0e\n\x06tables\x18\x02 \x03(\t\x12$\n\x07\x63harset\x18\x03 \x01(\x0b\x32\x13.binlogdata.Charset\"Q\n\x14StreamTablesResponse\x12\x39\n\x12\x62inlog_transaction\x18\x01 \x01(\x0b\x32\x1d.binlogdata.BinlogTransaction\"S\n\x06\x46ilter\x12\"\n\x07vschema\x18\x01 \x01(\x0b\x32\x11.vschema.Keyspace\x12%\n\tkey_range\x18\x02 \x01(\x0b\x32\x12.topodata.KeyRange\"\xb5\x01\n\x0c\x42inlogSource\x12\x10\n\x08keyspace\x18\x01 \x01(\t\x12\r\n\x05shard\x18\x02 \x01(\t\x12)\n\x0btablet_type\x18\x03 \x01(\x0e\x32\x14.topodata.TabletType\x12%\n\tkey_range\x18\x04 \x01(\x0b\x32\x12.topodata.KeyRange\x12\x0e\n\x06tables\x18\x05 \x03(\t\x12\"\n\x06\x66ilter\x18\x06 \x01(\x0b\x32\x12.binlogdata.FilterB)Z\'vitess.io/vitess/go/vt/proto/binlogdatab\x06proto3')
+  serialized_pb=_b('\n\x10\x62inlogdata.proto\x12\nbinlogdata\x1a\x0bquery.proto\x1a\x0etopodata.proto\"7\n\x07\x43harset\x12\x0e\n\x06\x63lient\x18\x01 \x01(\x05\x12\x0c\n\x04\x63onn\x18\x02 \x01(\x05\x12\x0e\n\x06server\x18\x03 \x01(\x05\"\xb5\x03\n\x11\x42inlogTransaction\x12;\n\nstatements\x18\x01 \x03(\x0b\x32\'.binlogdata.BinlogTransaction.Statement\x12&\n\x0b\x65vent_token\x18\x04 \x01(\x0b\x32\x11.query.EventToken\x1a\xae\x02\n\tStatement\x12\x42\n\x08\x63\x61tegory\x18\x01 \x01(\x0e\x32\x30.binlogdata.BinlogTransaction.Statement.Category\x12$\n\x07\x63harset\x18\x02 \x01(\x0b\x32\x13.binlogdata.Charset\x12\x0b\n\x03sql\x18\x03 \x01(\x0c\"\xa9\x01\n\x08\x43\x61tegory\x12\x13\n\x0f\x42L_UNRECOGNIZED\x10\x00\x12\x0c\n\x08\x42L_BEGIN\x10\x01\x12\r\n\tBL_COMMIT\x10\x02\x12\x0f\n\x0b\x42L_ROLLBACK\x10\x03\x12\x15\n\x11\x42L_DML_DEPRECATED\x10\x04\x12\n\n\x06\x42L_DDL\x10\x05\x12\n\n\x06\x42L_SET\x10\x06\x12\r\n\tBL_INSERT\x10\x07\x12\r\n\tBL_UPDATE\x10\x08\x12\r\n\tBL_DELETE\x10\tJ\x04\x08\x02\x10\x03J\x04\x08\x03\x10\x04\"q\n\x13StreamFilterRequest\x12\x10\n\x08position\x18\x01 \x01(\t\x12\"\n\x06\x66ilter\x18\x02 \x01(\x0b\x32\x12.binlogdata.Filter\x12$\n\x07\x63harset\x18\x03 \x01(\x0b\x32\x13.binlogdata.Charset\"Q\n\x14StreamFilterResponse\x12\x39\n\x12\x62inlog_transaction\x18\x01 \x01(\x0b\x32\x1d.binlogdata.BinlogTransaction\"v\n\x15StreamKeyRangeRequest\x12\x10\n\x08position\x18\x01 \x01(\t\x12%\n\tkey_range\x18\x02 \x01(\x0b\x32\x12.topodata.KeyRange\x12$\n\x07\x63harset\x18\x03 \x01(\x0b\x32\x13.binlogdata.Charset\"S\n\x16StreamKeyRangeResponse\x12\x39\n\x12\x62inlog_transaction\x18\x01 \x01(\x0b\x32\x1d.binlogdata.BinlogTransaction\"]\n\x13StreamTablesRequest\x12\x10\n\x08position\x18\x01 \x01(\t\x12\x0e\n\x06tables\x18\x02 \x03(\t\x12$\n\x07\x63harset\x18\x03 \x01(\x0b\x32\x13.binlogdata.Charset\"Q\n\x14StreamTablesResponse\x12\x39\n\x12\x62inlog_transaction\x18\x01 \x01(\x0b\x32\x1d.binlogdata.BinlogTransaction\"n\n\x06\x46ilter\x12\x33\n\ttable_map\x18\x01 \x03(\x0b\x32 .binlogdata.Filter.TableMapEntry\x1a/\n\rTableMapEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\xb5\x01\n\x0c\x42inlogSource\x12\x10\n\x08keyspace\x18\x01 \x01(\t\x12\r\n\x05shard\x18\x02 \x01(\t\x12)\n\x0btablet_type\x18\x03 \x01(\x0e\x32\x14.topodata.TabletType\x12%\n\tkey_range\x18\x04 \x01(\x0b\x32\x12.topodata.KeyRange\x12\x0e\n\x06tables\x18\x05 \x03(\t\x12\"\n\x06\x66ilter\x18\x06 \x01(\x0b\x32\x12.binlogdata.FilterB)Z\'vitess.io/vitess/go/vt/proto/binlogdatab\x06proto3')
   ,
-  dependencies=[query__pb2.DESCRIPTOR,topodata__pb2.DESCRIPTOR,vschema__pb2.DESCRIPTOR,])
+  dependencies=[query__pb2.DESCRIPTOR,topodata__pb2.DESCRIPTOR,])
 
 
 
@@ -77,8 +76,8 @@ _BINLOGTRANSACTION_STATEMENT_CATEGORY = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=390,
-  serialized_end=559,
+  serialized_start=375,
+  serialized_end=544,
 )
 _sym_db.RegisterEnumDescriptor(_BINLOGTRANSACTION_STATEMENT_CATEGORY)
 
@@ -123,8 +122,8 @@ _CHARSET = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=76,
-  serialized_end=131,
+  serialized_start=61,
+  serialized_end=116,
 )
 
 
@@ -169,8 +168,8 @@ _BINLOGTRANSACTION_STATEMENT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=257,
-  serialized_end=559,
+  serialized_start=242,
+  serialized_end=544,
 )
 
 _BINLOGTRANSACTION = _descriptor.Descriptor(
@@ -206,8 +205,8 @@ _BINLOGTRANSACTION = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=134,
-  serialized_end=571,
+  serialized_start=119,
+  serialized_end=556,
 )
 
 
@@ -251,8 +250,8 @@ _STREAMFILTERREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=573,
-  serialized_end=686,
+  serialized_start=558,
+  serialized_end=671,
 )
 
 
@@ -282,8 +281,8 @@ _STREAMFILTERRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=688,
-  serialized_end=769,
+  serialized_start=673,
+  serialized_end=754,
 )
 
 
@@ -327,8 +326,8 @@ _STREAMKEYRANGEREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=771,
-  serialized_end=889,
+  serialized_start=756,
+  serialized_end=874,
 )
 
 
@@ -358,8 +357,8 @@ _STREAMKEYRANGERESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=891,
-  serialized_end=974,
+  serialized_start=876,
+  serialized_end=959,
 )
 
 
@@ -403,8 +402,8 @@ _STREAMTABLESREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=976,
-  serialized_end=1069,
+  serialized_start=961,
+  serialized_end=1054,
 )
 
 
@@ -434,29 +433,29 @@ _STREAMTABLESRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1071,
-  serialized_end=1152,
+  serialized_start=1056,
+  serialized_end=1137,
 )
 
 
-_FILTER = _descriptor.Descriptor(
-  name='Filter',
-  full_name='binlogdata.Filter',
+_FILTER_TABLEMAPENTRY = _descriptor.Descriptor(
+  name='TableMapEntry',
+  full_name='binlogdata.Filter.TableMapEntry',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='vschema', full_name='binlogdata.Filter.vschema', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
+      name='key', full_name='binlogdata.Filter.TableMapEntry.key', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='key_range', full_name='binlogdata.Filter.key_range', index=1,
-      number=2, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
+      name='value', full_name='binlogdata.Filter.TableMapEntry.value', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
@@ -466,14 +465,44 @@ _FILTER = _descriptor.Descriptor(
   nested_types=[],
   enum_types=[
   ],
+  options=_descriptor._ParseOptions(descriptor_pb2.MessageOptions(), _b('8\001')),
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1202,
+  serialized_end=1249,
+)
+
+_FILTER = _descriptor.Descriptor(
+  name='Filter',
+  full_name='binlogdata.Filter',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='table_map', full_name='binlogdata.Filter.table_map', index=0,
+      number=1, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[_FILTER_TABLEMAPENTRY, ],
+  enum_types=[
+  ],
   options=None,
   is_extendable=False,
   syntax='proto3',
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1154,
-  serialized_end=1237,
+  serialized_start=1139,
+  serialized_end=1249,
 )
 
 
@@ -538,8 +567,8 @@ _BINLOGSOURCE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1240,
-  serialized_end=1421,
+  serialized_start=1252,
+  serialized_end=1433,
 )
 
 _BINLOGTRANSACTION_STATEMENT.fields_by_name['category'].enum_type = _BINLOGTRANSACTION_STATEMENT_CATEGORY
@@ -556,8 +585,8 @@ _STREAMKEYRANGEREQUEST.fields_by_name['charset'].message_type = _CHARSET
 _STREAMKEYRANGERESPONSE.fields_by_name['binlog_transaction'].message_type = _BINLOGTRANSACTION
 _STREAMTABLESREQUEST.fields_by_name['charset'].message_type = _CHARSET
 _STREAMTABLESRESPONSE.fields_by_name['binlog_transaction'].message_type = _BINLOGTRANSACTION
-_FILTER.fields_by_name['vschema'].message_type = vschema__pb2._KEYSPACE
-_FILTER.fields_by_name['key_range'].message_type = topodata__pb2._KEYRANGE
+_FILTER_TABLEMAPENTRY.containing_type = _FILTER
+_FILTER.fields_by_name['table_map'].message_type = _FILTER_TABLEMAPENTRY
 _BINLOGSOURCE.fields_by_name['tablet_type'].enum_type = topodata__pb2._TABLETTYPE
 _BINLOGSOURCE.fields_by_name['key_range'].message_type = topodata__pb2._KEYRANGE
 _BINLOGSOURCE.fields_by_name['filter'].message_type = _FILTER
@@ -638,11 +667,19 @@ StreamTablesResponse = _reflection.GeneratedProtocolMessageType('StreamTablesRes
 _sym_db.RegisterMessage(StreamTablesResponse)
 
 Filter = _reflection.GeneratedProtocolMessageType('Filter', (_message.Message,), dict(
+
+  TableMapEntry = _reflection.GeneratedProtocolMessageType('TableMapEntry', (_message.Message,), dict(
+    DESCRIPTOR = _FILTER_TABLEMAPENTRY,
+    __module__ = 'binlogdata_pb2'
+    # @@protoc_insertion_point(class_scope:binlogdata.Filter.TableMapEntry)
+    ))
+  ,
   DESCRIPTOR = _FILTER,
   __module__ = 'binlogdata_pb2'
   # @@protoc_insertion_point(class_scope:binlogdata.Filter)
   ))
 _sym_db.RegisterMessage(Filter)
+_sym_db.RegisterMessage(Filter.TableMapEntry)
 
 BinlogSource = _reflection.GeneratedProtocolMessageType('BinlogSource', (_message.Message,), dict(
   DESCRIPTOR = _BINLOGSOURCE,
@@ -654,4 +691,6 @@ _sym_db.RegisterMessage(BinlogSource)
 
 DESCRIPTOR.has_options = True
 DESCRIPTOR._options = _descriptor._ParseOptions(descriptor_pb2.FileOptions(), _b('Z\'vitess.io/vitess/go/vt/proto/binlogdata'))
+_FILTER_TABLEMAPENTRY.has_options = True
+_FILTER_TABLEMAPENTRY._options = _descriptor._ParseOptions(descriptor_pb2.MessageOptions(), _b('8\001'))
 # @@protoc_insertion_point(module_scope)

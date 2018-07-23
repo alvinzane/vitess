@@ -28,7 +28,7 @@ cmd = [
   'test-200',
   """insert into _vt.vreplication
   (source, pos, max_tps, max_replication_lag, tablet_types, time_updated, transaction_timestamp, state) values
-  ('keyspace:"lookup" shard:"0" filter:<vschema:<tables:<key:"rates" value:<columns:<name:"currency" > columns:<name:"rate" > > > > >', 'MySQL56/%s', 9999, 9999, 'master', 0, 0, 'Running')""" % positions.positions[100],
+  ('keyspace:"lookup" shard:"0" filter:<table_map:<key:"urates" value:"select * from rates" > >', 'MySQL56/%s', 9999, 9999, 'master', 0, 0, 'Running')""" % positions.positions[100],
   ]
 
 print "executing:", cmd

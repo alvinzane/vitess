@@ -90,11 +90,17 @@ func getStatementCategory(sql string) binlogdatapb.BinlogTransaction_Statement_C
 	return statementPrefixes[strings.ToLower(sql)]
 }
 
+type columnMap struct {
+	colnum int
+	name   string
+}
+
 // tableCacheEntry contains everything we know about a table.
 // It is created when we get a TableMap event.
 type tableCacheEntry struct {
-	filter  func(rs *mysql.Rows, data []byte, nullCols mysql.Bitmap) (bool, error)
-	columns []bool
+	newTable string
+	columns  []columnMap
+	filter   func([]sqltypes.Value) (bool, error)
 	// tm is what we get from a TableMap event.
 	tm *mysql.TableMap
 
@@ -142,8 +148,7 @@ type Streamer struct {
 	se              *schema.Engine
 	resolverFactory keyspaceIDResolverFactory
 	extractPK       bool
-	vschema         *vindexes.KeyspaceSchema
-	keyRange        *topodatapb.KeyRange
+	tableFilters    map[string]*tableFilter
 
 	clientCharset    *binlogdatapb.Charset
 	startPos         mysql.Position
@@ -152,6 +157,15 @@ type Streamer struct {
 	usePreviousGTIDs bool
 
 	conn *SlaveConnection
+}
+
+type tableFilter struct {
+	NewTable     string
+	FromColumns  []string
+	ToColumns    []string
+	VindexColumn string
+	Vindex       vindexes.Vindex
+	KeyRange     *topodatapb.KeyRange
 }
 
 // NewStreamer creates a binlog Streamer.
@@ -171,6 +185,121 @@ func NewStreamer(cp *mysql.ConnParams, se *schema.Engine, clientCharset *binlogd
 		timestamp:       timestamp,
 		sendTransaction: sendTransaction,
 	}
+}
+
+// SetFilter sets the filter for the streamer.
+func (bls *Streamer) SetFilter(tableMap map[string]string) error {
+	bls.tableFilters = make(map[string]*tableFilter)
+	for k, t := range tableMap {
+		if err := bls.addFilter(k, t); err != nil {
+			return err
+		}
+		log.Infof("created filter for %v: %v", k, bls.tableFilters[k])
+	}
+	return nil
+}
+
+func (bls *Streamer) addFilter(newTable string, query string) error {
+	statement, err := sqlparser.Parse(query)
+	if err != nil {
+		return err
+	}
+	tf := &tableFilter{
+		NewTable: newTable,
+	}
+	sel, ok := statement.(*sqlparser.Select)
+	if !ok {
+		return fmt.Errorf("unexpected: %v", sqlparser.String(sel))
+	}
+	if len(sel.From) > 1 {
+		return fmt.Errorf("unexpected: %v", sqlparser.String(sel))
+	}
+	node, ok := sel.From[0].(*sqlparser.AliasedTableExpr)
+	if !ok {
+		return fmt.Errorf("unexpected: %v", sqlparser.String(sel))
+	}
+	fromTable := sqlparser.GetTableName(node.Expr)
+	if fromTable.IsEmpty() {
+		return fmt.Errorf("unexpected: %v", sqlparser.String(sel))
+	}
+	bls.tableFilters[fromTable.String()] = tf
+
+	if _, ok := sel.SelectExprs[0].(*sqlparser.StarExpr); !ok {
+		for _, expr := range sel.SelectExprs {
+			colname, as, err := selColName(expr)
+			if err != nil {
+				return err
+			}
+			tf.FromColumns = append(tf.FromColumns, colname)
+			tf.ToColumns = append(tf.ToColumns, as)
+		}
+	}
+
+	if sel.Where == nil {
+		return nil
+	}
+	funcExpr, ok := sel.Where.Expr.(*sqlparser.FuncExpr)
+	if !ok {
+		return fmt.Errorf("unexpected where clause: %v", sqlparser.String(sel.Where))
+	}
+	if !funcExpr.Name.EqualString("in_keyrange") {
+		return fmt.Errorf("unexpected where clause: %v", sqlparser.String(sel.Where))
+	}
+	if len(funcExpr.Exprs) != 3 {
+		return fmt.Errorf("unexpected where clause: %v", sqlparser.String(sel.Where))
+	}
+	tf.VindexColumn, _, err = selColName(funcExpr.Exprs[0])
+	if err != nil {
+		return err
+	}
+	vtype, err := selString(funcExpr.Exprs[1])
+	if err != nil {
+		return err
+	}
+	tf.Vindex, err = vindexes.CreateVindex(vtype, vtype, map[string]string{})
+	if err != nil {
+		return err
+	}
+	kr, err := selString(funcExpr.Exprs[2])
+	if err != nil {
+		return err
+	}
+	keyranges, err := key.ParseShardingSpec(kr)
+	if err != nil {
+		return err
+	}
+	if len(keyranges) != 1 {
+		return fmt.Errorf("unexpected where clause: %v", sqlparser.String(sel.Where))
+	}
+	tf.KeyRange = keyranges[0]
+	return nil
+}
+
+func selColName(expr sqlparser.SelectExpr) (col, as string, err error) {
+	aexpr, ok := expr.(*sqlparser.AliasedExpr)
+	if !ok {
+		return "", "", fmt.Errorf("unexpected: %v", sqlparser.String(expr))
+	}
+	colname, ok := aexpr.Expr.(*sqlparser.ColName)
+	if !ok {
+		return "", "", fmt.Errorf("unexpected: %v", sqlparser.String(expr))
+	}
+	if aexpr.As.IsEmpty() {
+		return colname.Name.String(), colname.Name.String(), nil
+	}
+	return colname.Name.String(), aexpr.As.String(), nil
+}
+
+func selString(expr sqlparser.SelectExpr) (string, error) {
+	aexpr, ok := expr.(*sqlparser.AliasedExpr)
+	if !ok {
+		return "", fmt.Errorf("unexpected: %v", sqlparser.String(expr))
+	}
+	val, ok := aexpr.Expr.(*sqlparser.SQLVal)
+	if !ok {
+		return "", fmt.Errorf("unexpected: %v", sqlparser.String(expr))
+	}
+	return string(val.Val), nil
 }
 
 // Stream starts streaming binlog events using the settings from NewStreamer().
@@ -455,11 +584,6 @@ func (bls *Streamer) parseEvents(ctx context.Context, events <-chan mysql.Binlog
 				continue
 			}
 
-			tableSchema, ok := bls.vschema.Tables[tm.Name]
-			if !ok {
-				continue
-			}
-
 			// Find and fill in the table schema.
 			tce.ti = bls.se.GetTable(sqlparser.NewTableIdent(tm.Name))
 			if tce.ti == nil {
@@ -493,75 +617,65 @@ func (bls *Streamer) parseEvents(ctx context.Context, events <-chan mysql.Binlog
 				}
 			}
 
-			tce.columns = make([]bool, len(tce.ti.Columns))
-			for i, col := range tce.ti.Columns {
-				for _, vcol := range tableSchema.Columns {
-					if col.Name.Equal(vcol.Name) {
-						tce.columns[i] = true
+			tf, ok := bls.tableFilters[tm.Name]
+			if !ok {
+				continue
+			}
+			tce.newTable = tf.NewTable
+			if len(tf.FromColumns) == 0 {
+				for i, col := range tce.ti.Columns {
+					tce.columns = append(tce.columns, columnMap{
+						colnum: i,
+						name:   col.Name.String(),
+					})
+				}
+			} else {
+			outer:
+				for i, from := range tf.FromColumns {
+					for fromcolnum, fromcol := range tce.ti.Columns {
+						if fromcol.Name.EqualString(from) {
+							tce.columns = append(tce.columns, columnMap{
+								colnum: fromcolnum,
+								name:   tf.ToColumns[i],
+							})
+							continue outer
+						}
+					}
+					if err != nil {
+						return pos, fmt.Errorf("could not find column %s in table %s", from, tm.Name)
 					}
 				}
 			}
 
-			if bls.keyRange == nil {
-				tce.filter = func(rs *mysql.Rows, data []byte, nullCols mysql.Bitmap) (bool, error) { return true, nil }
+			if tf.VindexColumn == "" {
+				tce.filter = func([]sqltypes.Value) (bool, error) { return true, nil }
 				continue
 			}
 
-			if len(tableSchema.ColumnVindexes) == 0 {
-				return pos, fmt.Errorf("no vindex definition for table %v", tce.ti.Name)
-			}
-			colVindex := tableSchema.ColumnVindexes[0]
-			if colVindex.Vindex.Cost() > 1 {
-				return pos, fmt.Errorf("primary vindex cost is too high for table %v", tce.ti.Name)
-			}
-			shardingColumnName := colVindex.Columns[0].String()
-			var vindexCol int
-			var vindex vindexes.Vindex
-			for i, col := range tce.ti.Columns {
-				if col.Name.EqualString(shardingColumnName) {
-					// We found the column.
+			vindexCol := -1
+			for i, col := range tce.columns {
+				if col.name == tf.VindexColumn {
 					vindexCol = i
-					vindex = colVindex.Vindex
 					break
 				}
 			}
-			if vindex == nil {
-				return pos, fmt.Errorf("could not find column %v in table %v", shardingColumnName, tce.ti.Name)
+			if vindexCol == -1 {
+				return pos, fmt.Errorf("could not find column %v in table %v", tf.VindexColumn, tce.ti.Name)
 			}
-			tce.filter = func(rs *mysql.Rows, data []byte, nullColumns mysql.Bitmap) (bool, error) {
-				valueIndex := 0
-				pos := 0
-				for colNum := 0; colNum < rs.DataColumns.Count(); colNum++ {
-					if !rs.DataColumns.Bit(colNum) {
-						continue
-					}
-					if nullColumns.Bit(valueIndex) {
-						valueIndex++
-						continue
-					}
-					value, l, err := mysql.CellValue(data, pos, tce.tm.Types[colNum], tce.tm.Metadata[colNum], tce.ti.Columns[colNum].Type)
-					if err != nil {
-						return false, err
-					}
-					if colNum == vindexCol {
-						// hijacked from keyspace_id_resolver.go
-						destinations, err := vindex.Map(nil, []sqltypes.Value{value})
-						if err != nil {
-							return false, err
-						}
-						if len(destinations) != 1 {
-							return false, fmt.Errorf("mapping row to keyspace id returned an invalid array of destinations: %v", key.DestinationsString(destinations))
-						}
-						ksid, ok := destinations[0].(key.DestinationKeyspaceID)
-						if !ok || len(ksid) == 0 {
-							return false, fmt.Errorf("could not map %v to a keyspace id, got destination %v", value, destinations[0])
-						}
-						return key.KeyRangeContains(bls.keyRange, ksid), nil
-					}
-					pos += l
-					valueIndex++
+			tce.filter = func(values []sqltypes.Value) (bool, error) {
+				// hijacked from keyspace_id_resolver.go
+				destinations, err := tf.Vindex.Map(nil, []sqltypes.Value{values[vindexCol]})
+				if err != nil {
+					return false, err
 				}
-				return false, fmt.Errorf("value not in list")
+				if len(destinations) != 1 {
+					return false, fmt.Errorf("mapping row to keyspace id returned an invalid array of destinations: %v", key.DestinationsString(destinations))
+				}
+				ksid, ok := destinations[0].(key.DestinationKeyspaceID)
+				if !ok || len(ksid) == 0 {
+					return false, fmt.Errorf("could not map %v to a keyspace id, got destination %v", values[vindexCol], destinations[0])
+				}
+				return key.KeyRangeContains(tf.KeyRange, ksid), nil
 			}
 		case ev.IsWriteRows():
 			tableID := ev.TableID(format)
@@ -569,7 +683,7 @@ func (bls *Streamer) parseEvents(ctx context.Context, events <-chan mysql.Binlog
 			if !ok {
 				return pos, fmt.Errorf("unknown tableID %v in WriteRows event", tableID)
 			}
-			if tce.ti == nil {
+			if tce.ti == nil || tce.newTable == "" {
 				// Skip cross-db statements.
 				continue
 			}
@@ -585,8 +699,20 @@ func (bls *Streamer) parseEvents(ctx context.Context, events <-chan mysql.Binlog
 			if err != nil {
 				return pos, err
 			}
-
-			statements = bls.appendInserts(statements, tce, &rows)
+			for _, row := range rows.Rows {
+				values, err := extractRow(tce, &rows, row.Data, row.NullColumns)
+				if err != nil {
+					return pos, err
+				}
+				ok, err := tce.filter(values)
+				if err != nil {
+					return pos, err
+				}
+				if !ok {
+					continue
+				}
+				statements = append(statements, bls.buildInsert(tce, values))
+			}
 
 			if autocommit {
 				if err = commit(ev.Timestamp()); err != nil {
@@ -599,7 +725,7 @@ func (bls *Streamer) parseEvents(ctx context.Context, events <-chan mysql.Binlog
 			if !ok {
 				return pos, fmt.Errorf("unknown tableID %v in UpdateRows event", tableID)
 			}
-			if tce.ti == nil {
+			if tce.ti == nil || tce.newTable == "" {
 				// Skip cross-db statements.
 				continue
 			}
@@ -615,9 +741,34 @@ func (bls *Streamer) parseEvents(ctx context.Context, events <-chan mysql.Binlog
 			if err != nil {
 				return pos, err
 			}
-
-			statements = bls.appendDeletes(statements, tce, &rows)
-			statements = bls.appendInserts(statements, tce, &rows)
+			for _, row := range rows.Rows {
+				values, err := extractRow(tce, &rows, row.Identify, row.NullIdentifyColumns)
+				if err != nil {
+					return pos, err
+				}
+				ok, err := tce.filter(values)
+				if err != nil {
+					return pos, err
+				}
+				if !ok {
+					continue
+				}
+				statements = append(statements, bls.buildDelete(tce, values))
+			}
+			for _, row := range rows.Rows {
+				values, err := extractRow(tce, &rows, row.Data, row.NullColumns)
+				if err != nil {
+					return pos, err
+				}
+				ok, err := tce.filter(values)
+				if err != nil {
+					return pos, err
+				}
+				if !ok {
+					continue
+				}
+				statements = append(statements, bls.buildInsert(tce, values))
+			}
 
 			if autocommit {
 				if err = commit(ev.Timestamp()); err != nil {
@@ -630,7 +781,7 @@ func (bls *Streamer) parseEvents(ctx context.Context, events <-chan mysql.Binlog
 			if !ok {
 				return pos, fmt.Errorf("unknown tableID %v in DeleteRows event", tableID)
 			}
-			if tce.ti == nil {
+			if tce.ti == nil || tce.newTable == "" {
 				// Skip cross-db statements.
 				continue
 			}
@@ -646,8 +797,20 @@ func (bls *Streamer) parseEvents(ctx context.Context, events <-chan mysql.Binlog
 			if err != nil {
 				return pos, err
 			}
-
-			statements = bls.appendDeletes(statements, tce, &rows)
+			for _, row := range rows.Rows {
+				values, err := extractRow(tce, &rows, row.Identify, row.NullIdentifyColumns)
+				if err != nil {
+					return pos, err
+				}
+				ok, err := tce.filter(values)
+				if err != nil {
+					return pos, err
+				}
+				if !ok {
+					continue
+				}
+				statements = append(statements, bls.buildDelete(tce, values))
+			}
 
 			if autocommit {
 				if err = commit(ev.Timestamp()); err != nil {
@@ -658,178 +821,79 @@ func (bls *Streamer) parseEvents(ctx context.Context, events <-chan mysql.Binlog
 	}
 }
 
-func (bls *Streamer) appendInserts(statements []FullBinlogStatement, tce *tableCacheEntry, rows *mysql.Rows) []FullBinlogStatement {
-	for i, row := range rows.Rows {
-		ok, err := tce.filter(rows, row.Data, row.NullColumns)
-		if err != nil {
-			log.Error("unexptected error: %v", err)
-			return statements
-		}
-		if !ok {
+func extractRow(tce *tableCacheEntry, rs *mysql.Rows, data []byte, nullColumns mysql.Bitmap) ([]sqltypes.Value, error) {
+	values := make([]sqltypes.Value, 0, rs.DataColumns.Count())
+	valueIndex := 0
+	pos := 0
+	for colNum := 0; colNum < rs.DataColumns.Count(); colNum++ {
+		if !rs.DataColumns.Bit(colNum) {
 			continue
 		}
-		sql := sqlparser.NewTrackedBuffer(nil)
-		sql.Myprintf("INSERT INTO %v SET ", sqlparser.NewTableIdent(tce.tm.Name))
-
-		keyspaceIDCell, pkValues, err := writeValuesAsSQL(sql, tce, rows, i, tce.pkNames != nil)
-		if err != nil {
-			log.Warningf("writeValuesAsSQL(%v) failed: %v", i, err)
+		if nullColumns.Bit(valueIndex) {
+			values = append(values, sqltypes.NULL)
+			valueIndex++
 			continue
 		}
-
-		// Fill in keyspace id if needed.
-		var ksid []byte
-		if tce.resolver != nil {
-			var err error
-			ksid, err = tce.resolver.keyspaceID(keyspaceIDCell)
-			if err != nil {
-				log.Warningf("resolver(%v) failed: %v", err)
-			}
+		value, l, err := mysql.CellValue(data, pos, tce.tm.Types[colNum], tce.tm.Metadata[colNum], tce.ti.Columns[colNum].Type)
+		if err != nil {
+			return nil, err
 		}
-
-		statement := &binlogdatapb.BinlogTransaction_Statement{
-			Category: binlogdatapb.BinlogTransaction_Statement_BL_INSERT,
-			Sql:      sql.Bytes(),
-		}
-		statements = append(statements, FullBinlogStatement{
-			Statement:  statement,
-			Table:      tce.tm.Name,
-			KeyspaceID: ksid,
-			PKNames:    tce.pkNames,
-			PKValues:   pkValues,
-		})
+		pos += l
+		values = append(values, value)
+		valueIndex++
 	}
-	return statements
+	newValues := make([]sqltypes.Value, len(tce.columns))
+	for i, col := range tce.columns {
+		newValues[i] = values[col.colnum]
+	}
+	return newValues, nil
 }
 
-func (bls *Streamer) appendUpdates(statements []FullBinlogStatement, tce *tableCacheEntry, rows *mysql.Rows) []FullBinlogStatement {
-	for i := range rows.Rows {
-		sql := sqlparser.NewTrackedBuffer(nil)
-		sql.Myprintf("UPDATE %v SET ", sqlparser.NewTableIdent(tce.tm.Name))
+func (bls *Streamer) buildInsert(tce *tableCacheEntry, values []sqltypes.Value) FullBinlogStatement {
+	sql := sqlparser.NewTrackedBuffer(nil)
+	sql.Myprintf("INSERT INTO %s SET ", tce.newTable)
 
-		keyspaceIDCell, pkValues, err := writeValuesAsSQL(sql, tce, rows, i, tce.pkNames != nil)
-		if err != nil {
-			log.Warningf("writeValuesAsSQL(%v) failed: %v", i, err)
-			continue
-		}
+	writeValuesAsSQL(sql, tce, values)
 
-		sql.WriteString(" WHERE ")
-
-		if _, _, err := writeIdentifiersAsSQL(sql, tce, rows, i, false); err != nil {
-			log.Warningf("writeIdentifiesAsSQL(%v) failed: %v", i, err)
-			continue
-		}
-
-		// Fill in keyspace id if needed.
-		var ksid []byte
-		if tce.resolver != nil {
-			var err error
-			ksid, err = tce.resolver.keyspaceID(keyspaceIDCell)
-			if err != nil {
-				log.Warningf("resolver(%v) failed: %v", err)
-			}
-		}
-
-		update := &binlogdatapb.BinlogTransaction_Statement{
-			Category: binlogdatapb.BinlogTransaction_Statement_BL_UPDATE,
-			Sql:      sql.Bytes(),
-		}
-		statements = append(statements, FullBinlogStatement{
-			Statement:  update,
-			Table:      tce.tm.Name,
-			KeyspaceID: ksid,
-			PKNames:    tce.pkNames,
-			PKValues:   pkValues,
-		})
+	statement := &binlogdatapb.BinlogTransaction_Statement{
+		Category: binlogdatapb.BinlogTransaction_Statement_BL_INSERT,
+		Sql:      sql.Bytes(),
 	}
-	return statements
+	return FullBinlogStatement{
+		Statement: statement,
+		Table:     tce.tm.Name,
+		PKNames:   tce.pkNames,
+	}
 }
 
-func (bls *Streamer) appendDeletes(statements []FullBinlogStatement, tce *tableCacheEntry, rows *mysql.Rows) []FullBinlogStatement {
-	for i, row := range rows.Rows {
-		ok, err := tce.filter(rows, row.Identify, row.NullIdentifyColumns)
-		if err != nil {
-			log.Error("unexptected error: %v", err)
-			return statements
-		}
-		if !ok {
-			continue
-		}
-		sql := sqlparser.NewTrackedBuffer(nil)
-		sql.Myprintf("DELETE FROM %v WHERE ", sqlparser.NewTableIdent(tce.tm.Name))
+func (bls *Streamer) buildDelete(tce *tableCacheEntry, values []sqltypes.Value) FullBinlogStatement {
+	sql := sqlparser.NewTrackedBuffer(nil)
+	sql.Myprintf("DELETE FROM %s WHERE ", tce.newTable)
 
-		keyspaceIDCell, pkValues, err := writeIdentifiersAsSQL(sql, tce, rows, i, tce.pkNames != nil)
-		if err != nil {
-			log.Warningf("writeIdentifiesAsSQL(%v) failed: %v", i, err)
-			continue
-		}
+	writeIdentifiersAsSQL(sql, tce, values)
 
-		// Fill in keyspace id if needed.
-		var ksid []byte
-		if tce.resolver != nil {
-			var err error
-			ksid, err = tce.resolver.keyspaceID(keyspaceIDCell)
-			if err != nil {
-				log.Warningf("resolver(%v) failed: %v", err)
-			}
-		}
-
-		statement := &binlogdatapb.BinlogTransaction_Statement{
-			Category: binlogdatapb.BinlogTransaction_Statement_BL_DELETE,
-			Sql:      sql.Bytes(),
-		}
-		statements = append(statements, FullBinlogStatement{
-			Statement:  statement,
-			Table:      tce.tm.Name,
-			KeyspaceID: ksid,
-			PKNames:    tce.pkNames,
-			PKValues:   pkValues,
-		})
+	statement := &binlogdatapb.BinlogTransaction_Statement{
+		Category: binlogdatapb.BinlogTransaction_Statement_BL_DELETE,
+		Sql:      sql.Bytes(),
 	}
-	return statements
+	return FullBinlogStatement{
+		Statement: statement,
+		Table:     tce.tm.Name,
+		PKNames:   tce.pkNames,
+	}
 }
 
 // writeValuesAsSQL is a helper method to print the values as SQL in the
 // provided bytes.Buffer. It also returns the value for the keyspaceIDColumn,
 // and the array of values for the PK, if necessary.
-func writeValuesAsSQL(sql *sqlparser.TrackedBuffer, tce *tableCacheEntry, rs *mysql.Rows, rowIndex int, getPK bool) (sqltypes.Value, []sqltypes.Value, error) {
-	valueIndex := 0
-	data := rs.Rows[rowIndex].Data
-	pos := 0
-	var keyspaceIDCell sqltypes.Value
-	var pkValues []sqltypes.Value
-	if getPK {
-		pkValues = make([]sqltypes.Value, len(tce.pkNames))
-	}
-	firstValue := true
-	for colNum := 0; colNum < rs.DataColumns.Count(); colNum++ {
-		if !rs.DataColumns.Bit(colNum) {
-			continue
-		}
-		if !tce.columns[colNum] {
-			continue
-		}
-
-		// Print a separator if needed, then print the name.
-		if !firstValue {
+func writeValuesAsSQL(sql *sqlparser.TrackedBuffer, tce *tableCacheEntry, values []sqltypes.Value) {
+	for i, value := range values {
+		if i > 0 {
 			sql.WriteString(", ")
 		}
-		firstValue = false
-		sql.Myprintf("%v", tce.ti.Columns[colNum].Name)
+		sql.Myprintf("%s", tce.columns[i].name)
 		sql.WriteByte('=')
 
-		if rs.Rows[rowIndex].NullColumns.Bit(valueIndex) {
-			// This column is represented, but its value is NULL.
-			sql.WriteString("NULL")
-			valueIndex++
-			continue
-		}
-
-		// We have real data.
-		value, l, err := mysql.CellValue(data, pos, tce.tm.Types[colNum], tce.tm.Metadata[colNum], tce.ti.Columns[colNum].Type)
-		if err != nil {
-			return keyspaceIDCell, nil, err
-		}
 		if value.Type() == querypb.Type_TIMESTAMP && !bytes.HasPrefix(value.ToBytes(), mysql.ZeroTimestamp) {
 			// Values in the binary log are UTC. Let's convert them
 			// to whatever timezone the connection is using,
@@ -840,62 +904,25 @@ func writeValuesAsSQL(sql *sqlparser.TrackedBuffer, tce *tableCacheEntry, rs *my
 		} else {
 			value.EncodeSQL(sql)
 		}
-		if colNum == tce.keyspaceIDIndex {
-			keyspaceIDCell = value
-		}
-		if getPK {
-			if tce.pkIndexes[colNum] != -1 {
-				pkValues[tce.pkIndexes[colNum]] = value
-			}
-		}
-		pos += l
-		valueIndex++
 	}
-
-	return keyspaceIDCell, pkValues, nil
 }
 
 // writeIdentifiersAsSQL is a helper method to print the identifies as SQL in the
 // provided bytes.Buffer. It also returns the value for the keyspaceIDColumn,
 // and the array of values for the PK, if necessary.
-func writeIdentifiersAsSQL(sql *sqlparser.TrackedBuffer, tce *tableCacheEntry, rs *mysql.Rows, rowIndex int, getPK bool) (sqltypes.Value, []sqltypes.Value, error) {
-	valueIndex := 0
-	data := rs.Rows[rowIndex].Identify
-	pos := 0
-	var keyspaceIDCell sqltypes.Value
-	var pkValues []sqltypes.Value
-	if getPK {
-		pkValues = make([]sqltypes.Value, len(tce.pkNames))
-	}
-	firstValue := true
-	for colNum := 0; colNum < rs.IdentifyColumns.Count(); colNum++ {
-		if !rs.IdentifyColumns.Bit(colNum) {
-			continue
-		}
-		if !tce.columns[colNum] {
-			continue
-		}
-
-		// Print a separator if needed, then print the name.
-		if !firstValue {
+func writeIdentifiersAsSQL(sql *sqlparser.TrackedBuffer, tce *tableCacheEntry, values []sqltypes.Value) {
+	for i, value := range values {
+		if i > 0 {
 			sql.WriteString(" AND ")
 		}
-		firstValue = false
-		sql.Myprintf("%v", tce.ti.Columns[colNum].Name)
+		sql.Myprintf("%s", tce.columns[i].name)
 
-		if rs.Rows[rowIndex].NullIdentifyColumns.Bit(valueIndex) {
-			// This column is represented, but its value is NULL.
+		if value.IsNull() {
 			sql.WriteString(" IS NULL")
-			valueIndex++
 			continue
 		}
 		sql.WriteByte('=')
 
-		// We have real data.
-		value, l, err := mysql.CellValue(data, pos, tce.tm.Types[colNum], tce.tm.Metadata[colNum], tce.ti.Columns[colNum].Type)
-		if err != nil {
-			return keyspaceIDCell, nil, err
-		}
 		if value.Type() == querypb.Type_TIMESTAMP && !bytes.HasPrefix(value.ToBytes(), mysql.ZeroTimestamp) {
 			// Values in the binary log are UTC. Let's convert them
 			// to whatever timezone the connection is using,
@@ -906,17 +933,5 @@ func writeIdentifiersAsSQL(sql *sqlparser.TrackedBuffer, tce *tableCacheEntry, r
 		} else {
 			value.EncodeSQL(sql)
 		}
-		if colNum == tce.keyspaceIDIndex {
-			keyspaceIDCell = value
-		}
-		if getPK {
-			if tce.pkIndexes[colNum] != -1 {
-				pkValues[tce.pkIndexes[colNum]] = value
-			}
-		}
-		pos += l
-		valueIndex++
 	}
-
-	return keyspaceIDCell, pkValues, nil
 }

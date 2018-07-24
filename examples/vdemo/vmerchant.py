@@ -22,7 +22,7 @@ import MySQLdb as db
 
 import positions
 
-source = """keyspace:"user" shard:"-80" filter:<table_map:<key:"morder" value:"select * from uorder where in_keyrange(merchant_id, \\'hash\\', \\'-80\\')" > >"""
+source = """keyspace:"user" shard:"-80" filter:<table_map:<key:"morder" value:"select * from uorder where in_keyrange(mname, \\'unicode_loose_md5\\', \\'-80\\')" > >"""
 cmd = [
   './lvtctl.sh',
   'VReplicationExec',
@@ -35,7 +35,7 @@ cmd = [
 print "executing:", cmd
 subprocess.call(cmd)
 
-source = """keyspace:"user" shard:"80-" filter:<table_map:<key:"morder" value:"select * from uorder where in_keyrange(merchant_id, \\'hash\\', \\'-80\\')" > >"""
+source = """keyspace:"user" shard:"80-" filter:<table_map:<key:"morder" value:"select * from uorder where in_keyrange(mname, \\'unicode_loose_md5\\', \\'-80\\')" > >"""
 cmd = [
   './lvtctl.sh',
   'VReplicationExec',
@@ -48,7 +48,7 @@ cmd = [
 print "executing:", cmd
 subprocess.call(cmd)
 
-source = """keyspace:"user" shard:"-80" filter:<table_map:<key:"morder" value:"select * from uorder where in_keyrange(merchant_id, \\'hash\\', \\'80-\\')" > >"""
+source = """keyspace:"user" shard:"-80" filter:<table_map:<key:"morder" value:"select * from uorder where in_keyrange(mname, \\'unicode_loose_md5\\', \\'80-\\')" > >"""
 cmd = [
   './lvtctl.sh',
   'VReplicationExec',
@@ -61,7 +61,7 @@ cmd = [
 print "executing:", cmd
 subprocess.call(cmd)
 
-source = """keyspace:"user" shard:"80-" filter:<table_map:<key:"morder" value:"select * from uorder where in_keyrange(merchant_id, \\'hash\\', \\'80-\\')" > >"""
+source = """keyspace:"user" shard:"80-" filter:<table_map:<key:"morder" value:"select * from uorder where in_keyrange(mname, \\'unicode_loose_md5\\', \\'80-\\')" > >"""
 cmd = [
   './lvtctl.sh',
   'VReplicationExec',

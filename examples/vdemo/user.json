@@ -9,7 +9,7 @@
       "params": {
         "table": "name_user_idx",
         "from": "name",
-        "to": "id",
+        "to": "uid",
         "replicated": "true"
       },
       "owner": "user"
@@ -40,7 +40,7 @@
     "uorder": {
       "column_vindexes": [
         {
-          "column": "user_id",
+          "column": "uid",
           "name": "hash"
         }
       ],
@@ -48,13 +48,11 @@
         {
           "name": "id"
         },{
-          "name": "user_id"
+          "name": "uid"
         },{
-          "name": "merchant_id"
+          "name": "mname"
         },{
-          "name": "product_id"
-        },{
-          "name": "quantity"
+          "name": "pid"
         }
       ]
     },

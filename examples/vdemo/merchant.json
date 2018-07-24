@@ -1,22 +1,20 @@
 {
   "sharded": true,
   "vindexes": {
-    "hash": {
-      "type": "hash"
+    "md5": {
+      "type": "unicode_loose_md5"
     }
   },
   "tables": {
     "merchant": {
       "column_vindexes": [
         {
-          "column": "id",
-          "name": "hash"
+          "column": "name",
+          "name": "md5"
         }
       ],
       "columns": [
         {
-          "name": "id"
-        },{
           "name": "name"
         },{
           "name": "category"
@@ -26,21 +24,19 @@
     "morder": {
       "column_vindexes": [
         {
-          "column": "merchant_id",
-          "name": "hash"
+          "column": "mname",
+          "name": "md5"
         }
       ],
       "columns": [
         {
           "name": "id"
         },{
-          "name": "user_id"
+          "name": "uid"
         },{
-          "name": "merchant_id"
+          "name": "mname"
         },{
-          "name": "product_id"
-        },{
-          "name": "quantity"
+          "name": "pid"
         }
       ]
     }

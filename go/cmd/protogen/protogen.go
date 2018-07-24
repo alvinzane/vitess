@@ -40,7 +40,7 @@ func main() {
 		Shard:    "-80",
 		Filter: &binlogdatapb.Filter{
 			TableMap: map[string]string{
-				"morder": "select * from uorder where in_keyrange(merchant_id, \\'hash\\', \\'-80\\')",
+				"morder": "select * from uorder where in_keyrange(mname, \\'unicode_loose_md5\\', \\'-80\\')",
 			},
 		},
 	})
@@ -49,7 +49,7 @@ func main() {
 		Shard:    "80-",
 		Filter: &binlogdatapb.Filter{
 			TableMap: map[string]string{
-				"morder": "select * from uorder where in_keyrange(merchant_id, \\'hash\\', \\'-80\\')",
+				"morder": "select * from uorder where in_keyrange(mname, \\'unicode_loose_md5\\', \\'-80\\')",
 			},
 		},
 	})
@@ -58,7 +58,7 @@ func main() {
 		Shard:    "-80",
 		Filter: &binlogdatapb.Filter{
 			TableMap: map[string]string{
-				"morder": "select * from uorder where in_keyrange(merchant_id, \\'hash\\', \\'80-\\')",
+				"morder": "select * from uorder where in_keyrange(mname, \\'unicode_loose_md5\\', \\'80-\\')",
 			},
 		},
 	})
@@ -67,7 +67,7 @@ func main() {
 		Shard:    "80-",
 		Filter: &binlogdatapb.Filter{
 			TableMap: map[string]string{
-				"morder": "select * from uorder where in_keyrange(merchant_id, \\'hash\\', \\'80-\\')",
+				"morder": "select * from uorder where in_keyrange(mname, \\'unicode_loose_md5\\', \\'80-\\')",
 			},
 		},
 	})

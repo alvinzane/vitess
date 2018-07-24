@@ -378,6 +378,20 @@ func (blp *BinlogPlayer) applyEvents(ctx context.Context) error {
 }
 
 func (blp *BinlogPlayer) processTransaction(tx *binlogdatapb.BinlogTransaction) (ok bool, err error) {
+	if len(tx.Statements) == 0 {
+		if !blp.stopPosition.IsZero() && blp.position.AtLeast(blp.stopPosition) {
+			blp.writeRecoveryPosition(tx)
+		} else {
+			// Don't update position for empty transactions. Just remember it.
+			position, err := mysql.DecodePosition(tx.EventToken.Position)
+			if err != nil {
+				return false, err
+			}
+			blp.position = position
+		}
+		return true, nil
+	}
+
 	txnStartTime := time.Now()
 	if err = blp.dbClient.Begin(); err != nil {
 		return false, fmt.Errorf("failed query BEGIN, err: %s", err)

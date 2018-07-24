@@ -47,4 +47,3 @@ sleep 5s
 rm positions.py
 ./get_positions.py >positions.py
 cat positions.py
-./vmerchant.py

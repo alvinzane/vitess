@@ -23,22 +23,28 @@ set -e
 SHARD=0 UID_BASE=100 KEYSPACE=lookup ./vttablet-up.sh "$@" &
 SHARD=-80 UID_BASE=200 KEYSPACE=user ./vttablet-up.sh "$@" &
 SHARD=80- UID_BASE=300 KEYSPACE=user ./vttablet-up.sh "$@" &
-SHARD=-80 UID_BASE=400 KEYSPACE=nuser ./vttablet-up.sh "$@" &
-SHARD=80- UID_BASE=500 KEYSPACE=nuser ./vttablet-up.sh "$@" &
+SHARD=-80 UID_BASE=400 KEYSPACE=merchant ./vttablet-up.sh "$@" &
+SHARD=80- UID_BASE=500 KEYSPACE=merchant ./vttablet-up.sh "$@" &
 wait
 
 sleep 10s
 ./lvtctl.sh InitShardMaster -force lookup/0 test-100 &
 ./lvtctl.sh InitShardMaster -force user/-80 test-200 &
 ./lvtctl.sh InitShardMaster -force user/80- test-300 &
-./lvtctl.sh InitShardMaster -force nuser/-80 test-400 &
-./lvtctl.sh InitShardMaster -force nuser/80- test-500 &
+./lvtctl.sh InitShardMaster -force merchant/-80 test-400 &
+./lvtctl.sh InitShardMaster -force merchant/80- test-500 &
 wait
 
 ./lvtctl.sh ApplySchema -sql "$(cat lookup.sql)" lookup
 ./lvtctl.sh ApplyVSchema -vschema "$(cat lookup.json)" lookup
 ./lvtctl.sh ApplySchema -sql "$(cat user.sql)" user
 ./lvtctl.sh ApplyVSchema -vschema "$(cat user.json)" user
-./lvtctl.sh ApplySchema -sql "$(cat nuser.sql)" nuser
-./lvtctl.sh ApplyVSchema -vschema "$(cat nuser.json)" nuser
+./lvtctl.sh ApplySchema -sql "$(cat merchant.sql)" merchant
+./lvtctl.sh ApplyVSchema -vschema "$(cat merchant.json)" merchant
 ./vtgate-up.sh
+
+sleep 5s
+rm positions.py
+./get_positions.py >positions.py
+cat positions.py
+./vmerchant.py

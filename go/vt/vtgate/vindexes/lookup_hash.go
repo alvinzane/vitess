@@ -46,7 +46,7 @@ func init() {
 type LookupHash struct {
 	name       string
 	writeOnly  bool
-	dontVerify bool
+	replicated bool
 	lkp        lookupInternal
 }
 
@@ -70,7 +70,7 @@ func NewLookupHash(name string, m map[string]string) (Vindex, error) {
 	if err != nil {
 		return nil, err
 	}
-	lh.dontVerify, err = boolFromMap(m, "dont_verify")
+	lh.replicated, err = boolFromMap(m, "replicated")
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +118,11 @@ func (lh *LookupHash) Map(vcursor VCursor, ids []sqltypes.Value) ([]key.Destinat
 	}
 	for _, result := range results {
 		if len(result.Rows) == 0 {
-			out = append(out, key.DestinationNone{})
+			if lh.replicated {
+				out = append(out, key.DestinationKeyRange{KeyRange: &topodatapb.KeyRange{}})
+			} else {
+				out = append(out, key.DestinationNone{})
+			}
 			continue
 		}
 		ksids := make([][]byte, 0, len(result.Rows))
@@ -138,7 +142,7 @@ func (lh *LookupHash) Map(vcursor VCursor, ids []sqltypes.Value) ([]key.Destinat
 
 // Verify returns true if ids maps to ksids.
 func (lh *LookupHash) Verify(vcursor VCursor, ids []sqltypes.Value, ksids [][]byte) ([]bool, error) {
-	if lh.writeOnly || lh.dontVerify {
+	if lh.writeOnly || lh.replicated {
 		out := make([]bool, len(ids))
 		for i := range ids {
 			out[i] = true
@@ -155,6 +159,9 @@ func (lh *LookupHash) Verify(vcursor VCursor, ids []sqltypes.Value, ksids [][]by
 
 // Create reserves the id by inserting it into the vindex table.
 func (lh *LookupHash) Create(vcursor VCursor, rowsColValues [][]sqltypes.Value, ksids [][]byte, ignoreMode bool) error {
+	if lh.replicated {
+		return nil
+	}
 	values, err := unhashList(ksids)
 	if err != nil {
 		return fmt.Errorf("lookup.Create.vunhash: %v", err)
@@ -164,6 +171,9 @@ func (lh *LookupHash) Create(vcursor VCursor, rowsColValues [][]sqltypes.Value, 
 
 // Update updates the entry in the vindex table.
 func (lh *LookupHash) Update(vcursor VCursor, oldValues []sqltypes.Value, ksid []byte, newValues []sqltypes.Value) error {
+	if lh.replicated {
+		return nil
+	}
 	v, err := vunhash(ksid)
 	if err != nil {
 		return fmt.Errorf("lookup.Update.vunhash: %v", err)
@@ -173,6 +183,9 @@ func (lh *LookupHash) Update(vcursor VCursor, oldValues []sqltypes.Value, ksid [
 
 // Delete deletes the entry from the vindex table.
 func (lh *LookupHash) Delete(vcursor VCursor, rowsColValues [][]sqltypes.Value, ksid []byte) error {
+	if lh.replicated {
+		return nil
+	}
 	v, err := vunhash(ksid)
 	if err != nil {
 		return fmt.Errorf("lookup.Delete.vunhash: %v", err)

@@ -2,6 +2,14 @@
   "sharded": false,
   "tables": {
     "name_user_idx": {},
-    "rates": {}
+    "product": {
+      "columns": [
+        {
+          "name": "id"
+        },{
+          "name": "description"
+        }
+      ]
+    }
   }
 }

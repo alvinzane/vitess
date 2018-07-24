@@ -3,28 +3,14 @@
   "vindexes": {
     "hash": {
       "type": "hash"
-    },
-    "name_user_vdx": {
-      "type": "lookup_hash",
-      "params": {
-        "table": "name_user_idx",
-        "from": "name",
-        "to": "id",
-        "replicated": "true"
-      },
-      "owner": "user"
     }
   },
   "tables": {
-    "user": {
+    "merchant": {
       "column_vindexes": [
         {
           "column": "id",
           "name": "hash"
-        },
-        {
-          "column": "name",
-          "name": "name_user_vdx"
         }
       ],
       "columns": [
@@ -33,14 +19,14 @@
         },{
           "name": "name"
         },{
-          "name": "balance"
+          "name": "category"
         }
       ]
     },
-    "uorder": {
+    "morder": {
       "column_vindexes": [
         {
-          "column": "user_id",
+          "column": "merchant_id",
           "name": "hash"
         }
       ],
@@ -55,16 +41,6 @@
           "name": "product_id"
         },{
           "name": "quantity"
-        }
-      ]
-    },
-    "uproduct": {
-      "type": "reference",
-      "columns": [
-        {
-          "name": "id"
-        },{
-          "name": "description"
         }
       ]
     }

@@ -12,7 +12,7 @@ func main() {
 		Shard:    "0",
 		Filter: &binlogdatapb.Filter{
 			TableMap: map[string]string{
-				"urates": "select * from rates",
+				"uproduct": "select * from product",
 			},
 		},
 	})
@@ -40,37 +40,34 @@ func main() {
 		Shard:    "-80",
 		Filter: &binlogdatapb.Filter{
 			TableMap: map[string]string{
-				"nuser": "select * from user where in_keyrange(name, 'unicode_loose_md5', '-80')",
+				"morder": "select * from uorder where in_keyrange(merchant_id, \\'hash\\', \\'-80\\')",
 			},
 		},
 	})
-
 	fmt.Println(&binlogdatapb.BinlogSource{
 		Keyspace: "user",
 		Shard:    "80-",
 		Filter: &binlogdatapb.Filter{
 			TableMap: map[string]string{
-				"nuser": "select * from user where in_keyrange(name, 'unicode_loose_md5', '-80')",
+				"morder": "select * from uorder where in_keyrange(merchant_id, \\'hash\\', \\'-80\\')",
 			},
 		},
 	})
-
 	fmt.Println(&binlogdatapb.BinlogSource{
 		Keyspace: "user",
 		Shard:    "-80",
 		Filter: &binlogdatapb.Filter{
 			TableMap: map[string]string{
-				"nuser": "select * from user where in_keyrange(name, 'unicode_loose_md5', '80-')",
+				"morder": "select * from uorder where in_keyrange(merchant_id, \\'hash\\', \\'80-\\')",
 			},
 		},
 	})
-
 	fmt.Println(&binlogdatapb.BinlogSource{
 		Keyspace: "user",
 		Shard:    "80-",
 		Filter: &binlogdatapb.Filter{
 			TableMap: map[string]string{
-				"nuser": "select * from user where in_keyrange(name, 'unicode_loose_md5', '80-')",
+				"morder": "select * from uorder where in_keyrange(merchant_id, \\'hash\\', \\'80-\\')",
 			},
 		},
 	})

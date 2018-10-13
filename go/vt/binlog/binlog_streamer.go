@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
@@ -91,8 +92,9 @@ func getStatementCategory(sql string) binlogdatapb.BinlogTransaction_Statement_C
 }
 
 type columnMap struct {
-	colnum int
-	name   string
+	colnum    int
+	name      string
+	operation operation
 }
 
 // tableCacheEntry contains everything we know about a table.
@@ -100,6 +102,7 @@ type columnMap struct {
 type tableCacheEntry struct {
 	newTable string
 	columns  []columnMap
+	aggrs    []columnMap
 	filter   func([]sqltypes.Value) (bool, error)
 	// tm is what we get from a TableMap event.
 	tm *mysql.TableMap
@@ -161,12 +164,26 @@ type Streamer struct {
 
 type tableFilter struct {
 	NewTable     string
-	FromColumns  []string
+	ColExprs     []colExpr
 	ToColumns    []string
 	VindexColumn string
 	Vindex       vindexes.Vindex
 	KeyRange     *topodatapb.KeyRange
 }
+
+type colExpr struct {
+	colName   string
+	operation operation
+}
+
+type operation int
+
+const (
+	opNone = operation(iota)
+	opYearMonth
+	opCount
+	opSum
+)
 
 // NewStreamer creates a binlog Streamer.
 //
@@ -226,11 +243,11 @@ func (bls *Streamer) addFilter(newTable string, query string) error {
 
 	if _, ok := sel.SelectExprs[0].(*sqlparser.StarExpr); !ok {
 		for _, expr := range sel.SelectExprs {
-			colname, as, err := selColName(expr)
+			cExpr, as, err := analyzeExpr(expr)
 			if err != nil {
 				return err
 			}
-			tf.FromColumns = append(tf.FromColumns, colname)
+			tf.ColExprs = append(tf.ColExprs, cExpr)
 			tf.ToColumns = append(tf.ToColumns, as)
 		}
 	}
@@ -248,10 +265,14 @@ func (bls *Streamer) addFilter(newTable string, query string) error {
 	if len(funcExpr.Exprs) != 3 {
 		return fmt.Errorf("unexpected where clause: %v", sqlparser.String(sel.Where))
 	}
-	tf.VindexColumn, _, err = selColName(funcExpr.Exprs[0])
+	cExpr, _, err := analyzeExpr(funcExpr.Exprs[0])
 	if err != nil {
 		return err
 	}
+	if cExpr.operation != opNone {
+		return fmt.Errorf("unexpected operaion on vindex column: %v", funcExpr.Exprs[0])
+	}
+	tf.VindexColumn = cExpr.colName
 	vtype, err := selString(funcExpr.Exprs[1])
 	if err != nil {
 		return err
@@ -275,19 +296,46 @@ func (bls *Streamer) addFilter(newTable string, query string) error {
 	return nil
 }
 
-func selColName(expr sqlparser.SelectExpr) (col, as string, err error) {
+func analyzeExpr(expr sqlparser.SelectExpr) (cExpr colExpr, as string, err error) {
 	aexpr, ok := expr.(*sqlparser.AliasedExpr)
 	if !ok {
-		return "", "", fmt.Errorf("unexpected: %v", sqlparser.String(expr))
+		return colExpr{}, "", fmt.Errorf("unexpected: %v", sqlparser.String(expr))
 	}
-	colname, ok := aexpr.Expr.(*sqlparser.ColName)
-	if !ok {
-		return "", "", fmt.Errorf("unexpected: %v", sqlparser.String(expr))
+	switch expr := aexpr.Expr.(type) {
+	case *sqlparser.ColName:
+		if aexpr.As.IsEmpty() {
+			return colExpr{colName: expr.Name.String()}, expr.Name.String(), nil
+		}
+		return colExpr{colName: expr.Name.String()}, aexpr.As.String(), nil
+	case *sqlparser.FuncExpr:
+		if expr.Distinct || len(expr.Exprs) != 1 {
+			return colExpr{}, "", fmt.Errorf("unsupported: %v", sqlparser.String(expr))
+		}
+		if aexpr.As.IsEmpty() {
+			return colExpr{}, "", fmt.Errorf("need alias: %v", sqlparser.String(expr))
+		}
+		switch fname := expr.Name.Lowered(); fname {
+		case "count":
+			return colExpr{operation: opCount}, aexpr.As.String(), nil
+		case "sum", "yearmonth":
+			aInner, ok := expr.Exprs[0].(*sqlparser.AliasedExpr)
+			if !ok {
+				return colExpr{}, "", fmt.Errorf("unsupported: %v", sqlparser.String(expr))
+			}
+			innerCol, ok := aInner.Expr.(*sqlparser.ColName)
+			if !ok {
+				return colExpr{}, "", fmt.Errorf("unsupported: %v", sqlparser.String(expr))
+			}
+			if fname == "sum" {
+				return colExpr{colName: innerCol.Name.String(), operation: opSum}, aexpr.As.String(), nil
+			}
+			return colExpr{colName: innerCol.Name.String(), operation: opYearMonth}, aexpr.As.String(), nil
+		default:
+			return colExpr{}, "", fmt.Errorf("unsupported: %v", sqlparser.String(expr))
+		}
+	default:
+		return colExpr{}, "", fmt.Errorf("unexpected: %v", sqlparser.String(expr))
 	}
-	if aexpr.As.IsEmpty() {
-		return colname.Name.String(), colname.Name.String(), nil
-	}
-	return colname.Name.String(), aexpr.As.String(), nil
 }
 
 func selString(expr sqlparser.SelectExpr) (string, error) {
@@ -622,7 +670,7 @@ func (bls *Streamer) parseEvents(ctx context.Context, events <-chan mysql.Binlog
 				continue
 			}
 			tce.newTable = tf.NewTable
-			if len(tf.FromColumns) == 0 {
+			if len(tf.ColExprs) == 0 {
 				for i, col := range tce.ti.Columns {
 					tce.columns = append(tce.columns, columnMap{
 						colnum: i,
@@ -631,19 +679,33 @@ func (bls *Streamer) parseEvents(ctx context.Context, events <-chan mysql.Binlog
 				}
 			} else {
 			outer:
-				for i, from := range tf.FromColumns {
+				for i, from := range tf.ColExprs {
+					if from.operation == opCount {
+						tce.aggrs = append(tce.aggrs, columnMap{
+							operation: from.operation,
+							name:      tf.ToColumns[i],
+						})
+						continue
+					}
 					for fromcolnum, fromcol := range tce.ti.Columns {
-						if fromcol.Name.EqualString(from) {
-							tce.columns = append(tce.columns, columnMap{
-								colnum: fromcolnum,
-								name:   tf.ToColumns[i],
-							})
+						if fromcol.Name.EqualString(from.colName) {
+							if from.operation == opNone || from.operation == opYearMonth {
+								tce.columns = append(tce.columns, columnMap{
+									colnum:    fromcolnum,
+									name:      tf.ToColumns[i],
+									operation: from.operation,
+								})
+							} else {
+								tce.aggrs = append(tce.aggrs, columnMap{
+									colnum:    fromcolnum,
+									name:      tf.ToColumns[i],
+									operation: from.operation,
+								})
+							}
 							continue outer
 						}
 					}
-					if err != nil {
-						return pos, fmt.Errorf("could not find column %s in table %s", from, tm.Name)
-					}
+					return pos, fmt.Errorf("could not find column %v in table %s", from, tm.Name)
 				}
 			}
 
@@ -700,7 +762,7 @@ func (bls *Streamer) parseEvents(ctx context.Context, events <-chan mysql.Binlog
 				return pos, err
 			}
 			for _, row := range rows.Rows {
-				values, err := extractRow(tce, &rows, row.Data, row.NullColumns)
+				values, aggrs, err := extractRow(tce, row.Data, rows.DataColumns, row.NullColumns)
 				if err != nil {
 					return pos, err
 				}
@@ -711,7 +773,7 @@ func (bls *Streamer) parseEvents(ctx context.Context, events <-chan mysql.Binlog
 				if !ok {
 					continue
 				}
-				statements = append(statements, bls.buildInsert(tce, values))
+				statements = append(statements, bls.buildInsert(tce, values, aggrs))
 			}
 
 			if autocommit {
@@ -742,7 +804,7 @@ func (bls *Streamer) parseEvents(ctx context.Context, events <-chan mysql.Binlog
 				return pos, err
 			}
 			for _, row := range rows.Rows {
-				values, err := extractRow(tce, &rows, row.Identify, row.NullIdentifyColumns)
+				values, aggrs, err := extractRow(tce, row.Identify, rows.IdentifyColumns, row.NullIdentifyColumns)
 				if err != nil {
 					return pos, err
 				}
@@ -753,10 +815,10 @@ func (bls *Streamer) parseEvents(ctx context.Context, events <-chan mysql.Binlog
 				if !ok {
 					continue
 				}
-				statements = append(statements, bls.buildDelete(tce, values))
+				statements = append(statements, bls.buildDelete(tce, values, aggrs))
 			}
 			for _, row := range rows.Rows {
-				values, err := extractRow(tce, &rows, row.Data, row.NullColumns)
+				values, aggrs, err := extractRow(tce, row.Data, rows.DataColumns, row.NullColumns)
 				if err != nil {
 					return pos, err
 				}
@@ -767,7 +829,7 @@ func (bls *Streamer) parseEvents(ctx context.Context, events <-chan mysql.Binlog
 				if !ok {
 					continue
 				}
-				statements = append(statements, bls.buildInsert(tce, values))
+				statements = append(statements, bls.buildInsert(tce, values, aggrs))
 			}
 
 			if autocommit {
@@ -798,7 +860,7 @@ func (bls *Streamer) parseEvents(ctx context.Context, events <-chan mysql.Binlog
 				return pos, err
 			}
 			for _, row := range rows.Rows {
-				values, err := extractRow(tce, &rows, row.Identify, row.NullIdentifyColumns)
+				values, aggrs, err := extractRow(tce, row.Identify, rows.IdentifyColumns, row.NullIdentifyColumns)
 				if err != nil {
 					return pos, err
 				}
@@ -809,7 +871,7 @@ func (bls *Streamer) parseEvents(ctx context.Context, events <-chan mysql.Binlog
 				if !ok {
 					continue
 				}
-				statements = append(statements, bls.buildDelete(tce, values))
+				statements = append(statements, bls.buildDelete(tce, values, aggrs))
 			}
 
 			if autocommit {
@@ -821,12 +883,12 @@ func (bls *Streamer) parseEvents(ctx context.Context, events <-chan mysql.Binlog
 	}
 }
 
-func extractRow(tce *tableCacheEntry, rs *mysql.Rows, data []byte, nullColumns mysql.Bitmap) ([]sqltypes.Value, error) {
-	values := make([]sqltypes.Value, 0, rs.DataColumns.Count())
+func extractRow(tce *tableCacheEntry, data []byte, dataColumns, nullColumns mysql.Bitmap) (row, aggrs []sqltypes.Value, err error) {
+	values := make([]sqltypes.Value, 0, dataColumns.Count())
 	valueIndex := 0
 	pos := 0
-	for colNum := 0; colNum < rs.DataColumns.Count(); colNum++ {
-		if !rs.DataColumns.Bit(colNum) {
+	for colNum := 0; colNum < dataColumns.Count(); colNum++ {
+		if !dataColumns.Bit(colNum) {
 			continue
 		}
 		if nullColumns.Bit(valueIndex) {
@@ -836,24 +898,40 @@ func extractRow(tce *tableCacheEntry, rs *mysql.Rows, data []byte, nullColumns m
 		}
 		value, l, err := mysql.CellValue(data, pos, tce.tm.Types[colNum], tce.tm.Metadata[colNum], tce.ti.Columns[colNum].Type)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		pos += l
 		values = append(values, value)
 		valueIndex++
 	}
-	newValues := make([]sqltypes.Value, len(tce.columns))
+	row = make([]sqltypes.Value, len(tce.columns))
 	for i, col := range tce.columns {
-		newValues[i] = values[col.colnum]
+		row[i] = values[col.colnum]
 	}
-	return newValues, nil
+	if len(tce.aggrs) != 0 {
+		aggrs = make([]sqltypes.Value, len(tce.aggrs))
+	}
+	for i, aggr := range tce.aggrs {
+		if aggr.operation == opCount {
+			aggrs[i] = sqltypes.NewInt64(1)
+		} else {
+			aggrs[i] = values[aggr.colnum]
+		}
+	}
+	return row, aggrs, nil
 }
 
-func (bls *Streamer) buildInsert(tce *tableCacheEntry, values []sqltypes.Value) FullBinlogStatement {
+func (bls *Streamer) buildInsert(tce *tableCacheEntry, values, aggrs []sqltypes.Value) FullBinlogStatement {
 	sql := sqlparser.NewTrackedBuffer(nil)
 	sql.Myprintf("INSERT INTO %s SET ", tce.newTable)
 
-	writeValuesAsSQL(sql, tce, values)
+	writeValuesAsSQL(sql, tce.columns, values)
+	if len(aggrs) != 0 {
+		sql.WriteString(", ")
+		writeValuesAsSQL(sql, tce.aggrs, aggrs)
+		sql.Myprintf(" ON DUPLICATE KEY UPDATE ")
+		writeUpdateAsSQL(sql, tce.aggrs, aggrs, "+")
+	}
 
 	statement := &binlogdatapb.BinlogTransaction_Statement{
 		Category: binlogdatapb.BinlogTransaction_Statement_BL_INSERT,
@@ -866,11 +944,17 @@ func (bls *Streamer) buildInsert(tce *tableCacheEntry, values []sqltypes.Value) 
 	}
 }
 
-func (bls *Streamer) buildDelete(tce *tableCacheEntry, values []sqltypes.Value) FullBinlogStatement {
+func (bls *Streamer) buildDelete(tce *tableCacheEntry, values, aggrs []sqltypes.Value) FullBinlogStatement {
 	sql := sqlparser.NewTrackedBuffer(nil)
-	sql.Myprintf("DELETE FROM %s WHERE ", tce.newTable)
+	if len(aggrs) == 0 {
+		sql.Myprintf("DELETE FROM %s WHERE ", tce.newTable)
+	} else {
+		sql.Myprintf("UPDATE %s set ", tce.newTable)
+		writeUpdateAsSQL(sql, tce.aggrs, aggrs, "-")
+		sql.Myprintf(" WHERE ", tce.newTable)
+	}
 
-	writeIdentifiersAsSQL(sql, tce, values)
+	writeIdentifiersAsSQL(sql, tce.columns, values)
 
 	statement := &binlogdatapb.BinlogTransaction_Statement{
 		Category: binlogdatapb.BinlogTransaction_Statement_BL_DELETE,
@@ -886,13 +970,41 @@ func (bls *Streamer) buildDelete(tce *tableCacheEntry, values []sqltypes.Value) 
 // writeValuesAsSQL is a helper method to print the values as SQL in the
 // provided bytes.Buffer. It also returns the value for the keyspaceIDColumn,
 // and the array of values for the PK, if necessary.
-func writeValuesAsSQL(sql *sqlparser.TrackedBuffer, tce *tableCacheEntry, values []sqltypes.Value) {
+func writeValuesAsSQL(sql *sqlparser.TrackedBuffer, cmap []columnMap, values []sqltypes.Value) {
 	for i, value := range values {
 		if i > 0 {
 			sql.WriteString(", ")
 		}
-		sql.Myprintf("%s", tce.columns[i].name)
-		sql.WriteByte('=')
+		sql.Myprintf("%s=", cmap[i].name)
+
+		if value.Type() == querypb.Type_TIMESTAMP && !bytes.HasPrefix(value.ToBytes(), mysql.ZeroTimestamp) {
+			// Values in the binary log are UTC. Let's convert them
+			// to whatever timezone the connection is using,
+			// so MySQL properly converts them back to UTC.
+			sql.WriteString("convert_tz(")
+			value.EncodeSQL(sql)
+			sql.WriteString(", '+00:00', @@session.time_zone)")
+		} else {
+			if cmap[i].operation == opYearMonth {
+				v, _ := sqltypes.ToInt64(value)
+				t := time.Unix(v, 0)
+				sql.Myprintf("%s", fmt.Sprintf("%d%02d", t.Year(), t.Month()))
+			} else {
+				value.EncodeSQL(sql)
+			}
+		}
+	}
+}
+
+// writeUpdateAsSQL is a helper method to print the values as SQL in the
+// provided bytes.Buffer. It also returns the value for the keyspaceIDColumn,
+// and the array of values for the PK, if necessary.
+func writeUpdateAsSQL(sql *sqlparser.TrackedBuffer, cmap []columnMap, values []sqltypes.Value, op string) {
+	for i, value := range values {
+		if i > 0 {
+			sql.WriteString(", ")
+		}
+		sql.Myprintf("%s=%s%s", cmap[i].name, cmap[i].name, op)
 
 		if value.Type() == querypb.Type_TIMESTAMP && !bytes.HasPrefix(value.ToBytes(), mysql.ZeroTimestamp) {
 			// Values in the binary log are UTC. Let's convert them
@@ -910,12 +1022,12 @@ func writeValuesAsSQL(sql *sqlparser.TrackedBuffer, tce *tableCacheEntry, values
 // writeIdentifiersAsSQL is a helper method to print the identifies as SQL in the
 // provided bytes.Buffer. It also returns the value for the keyspaceIDColumn,
 // and the array of values for the PK, if necessary.
-func writeIdentifiersAsSQL(sql *sqlparser.TrackedBuffer, tce *tableCacheEntry, values []sqltypes.Value) {
+func writeIdentifiersAsSQL(sql *sqlparser.TrackedBuffer, cmap []columnMap, values []sqltypes.Value) {
 	for i, value := range values {
 		if i > 0 {
 			sql.WriteString(" AND ")
 		}
-		sql.Myprintf("%s", tce.columns[i].name)
+		sql.Myprintf("%s", cmap[i].name)
 
 		if value.IsNull() {
 			sql.WriteString(" IS NULL")
@@ -931,7 +1043,14 @@ func writeIdentifiersAsSQL(sql *sqlparser.TrackedBuffer, tce *tableCacheEntry, v
 			value.EncodeSQL(sql)
 			sql.WriteString(", '+00:00', @@session.time_zone)")
 		} else {
-			value.EncodeSQL(sql)
+			// TODO(sougou): duplicated code.
+			if cmap[i].operation == opYearMonth {
+				v, _ := sqltypes.ToInt64(value)
+				t := time.Unix(v, 0)
+				sql.Myprintf("%s", fmt.Sprintf("%d%02d", t.Year(), t.Month()))
+			} else {
+				value.EncodeSQL(sql)
+			}
 		}
 	}
 }

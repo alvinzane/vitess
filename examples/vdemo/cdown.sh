@@ -20,6 +20,10 @@ UID_BASE=200 ./vttablet-down.sh &
 UID_BASE=300 ./vttablet-down.sh &
 UID_BASE=400 ./vttablet-down.sh &
 UID_BASE=500 ./vttablet-down.sh &
+UID_BASE=600 ./vttablet-down.sh &
+UID_BASE=700 ./vttablet-down.sh &
+UID_BASE=800 ./vttablet-down.sh &
+UID_BASE=900 ./vttablet-down.sh &
 wait
 ./vtctld-down.sh
 ./zk-down.sh

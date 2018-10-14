@@ -97,11 +97,10 @@ def main():
 
     try:
       queries = []
-      stats1 = capture_log(15100, "lookup", queries)
-      stats2 = capture_log(15200, "user:-80", queries)
-      stats3 = capture_log(15300, "user:80-", queries)
-      stats4 = capture_log(15400, "merchant:-80", queries)
-      stats5 = capture_log(15500, "merchant:80-", queries)
+      stats1 = capture_log(15600, "event:-80", queries)
+      stats2 = capture_log(15700, "event:80-", queries)
+      stats3 = capture_log(15800, "rollup:-80", queries)
+      stats4 = capture_log(15900, "rollup:80-", queries)
       time.sleep(0.25)
       exec_query(conn, "result", query, response)
     finally:
@@ -109,51 +108,22 @@ def main():
       stats2.terminate()
       stats3.terminate()
       stats4.terminate()
-      stats5.terminate()
       time.sleep(0.25)
       response["queries"] = queries
 
     exec_query(
-        conn, "product", "select * from product", response,
-        keyspace="lookup", kr="-")
+        conn, "event0",
+        "select * from event", response, keyspace="event", kr="-80")
     exec_query(
-        conn, "name_user_idx", "select * from name_user_idx", response,
-        keyspace="lookup", kr="-")
+        conn, "event1",
+        "select * from event", response, keyspace="event", kr="80-")
 
     exec_query(
-        conn, "user0",
-        "select * from user", response, keyspace="user", kr="-80")
+        conn, "rollup0",
+        "select * from by_tenant", response, keyspace="rollup", kr="-80")
     exec_query(
-        conn, "user1",
-        "select * from user", response, keyspace="user", kr="80-")
-
-    exec_query(
-        conn, "uorder0",
-        "select * from uorder", response, keyspace="user", kr="-80")
-    exec_query(
-        conn, "uorder1",
-        "select * from uorder", response, keyspace="user", kr="80-")
-
-    exec_query(
-        conn, "uproduct0",
-        "select * from uproduct", response, keyspace="user", kr="-80")
-    exec_query(
-        conn, "uproduct1",
-        "select * from uproduct", response, keyspace="user", kr="80-")
-
-    exec_query(
-        conn, "merchant0",
-        "select * from merchant", response, keyspace="merchant", kr="-80")
-    exec_query(
-        conn, "merchant1",
-        "select * from merchant", response, keyspace="merchant", kr="80-")
-
-    exec_query(
-        conn, "morder0",
-        "select * from morder", response, keyspace="merchant", kr="-80")
-    exec_query(
-        conn, "morder1",
-        "select * from morder", response, keyspace="merchant", kr="80-")
+        conn, "rollup1",
+        "select * from by_tenant", response, keyspace="rollup", kr="80-")
 
     print json.dumps(response, default=decimal_default)
   except Exception as e:  # pylint: disable=broad-except

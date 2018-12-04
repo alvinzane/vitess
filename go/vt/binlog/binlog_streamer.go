@@ -181,6 +181,8 @@ type operation int
 const (
 	opNone = operation(iota)
 	opYearMonth
+	opDay
+	opHour
 	opCount
 	opSum
 )
@@ -317,7 +319,7 @@ func analyzeExpr(expr sqlparser.SelectExpr) (cExpr colExpr, as string, err error
 		switch fname := expr.Name.Lowered(); fname {
 		case "count":
 			return colExpr{operation: opCount}, aexpr.As.String(), nil
-		case "sum", "yearmonth":
+		case "sum", "yearmonth", "day", "hour":
 			aInner, ok := expr.Exprs[0].(*sqlparser.AliasedExpr)
 			if !ok {
 				return colExpr{}, "", fmt.Errorf("unsupported: %v", sqlparser.String(expr))
@@ -326,10 +328,18 @@ func analyzeExpr(expr sqlparser.SelectExpr) (cExpr colExpr, as string, err error
 			if !ok {
 				return colExpr{}, "", fmt.Errorf("unsupported: %v", sqlparser.String(expr))
 			}
-			if fname == "sum" {
+			switch fname {
+			case "sum":
 				return colExpr{colName: innerCol.Name.String(), operation: opSum}, aexpr.As.String(), nil
+			case "yearmonth":
+				return colExpr{colName: innerCol.Name.String(), operation: opYearMonth}, aexpr.As.String(), nil
+			case "day":
+				return colExpr{colName: innerCol.Name.String(), operation: opDay}, aexpr.As.String(), nil
+			case "hour":
+				return colExpr{colName: innerCol.Name.String(), operation: opHour}, aexpr.As.String(), nil
+			default:
+				panic("unreachable")
 			}
-			return colExpr{colName: innerCol.Name.String(), operation: opYearMonth}, aexpr.As.String(), nil
 		default:
 			return colExpr{}, "", fmt.Errorf("unsupported: %v", sqlparser.String(expr))
 		}
@@ -689,7 +699,7 @@ func (bls *Streamer) parseEvents(ctx context.Context, events <-chan mysql.Binlog
 					}
 					for fromcolnum, fromcol := range tce.ti.Columns {
 						if fromcol.Name.EqualString(from.colName) {
-							if from.operation == opNone || from.operation == opYearMonth {
+							if from.operation != opCount && from.operation != opSum {
 								tce.columns = append(tce.columns, columnMap{
 									colnum:    fromcolnum,
 									name:      tf.ToColumns[i],
@@ -985,13 +995,7 @@ func writeValuesAsSQL(sql *sqlparser.TrackedBuffer, cmap []columnMap, values []s
 			value.EncodeSQL(sql)
 			sql.WriteString(", '+00:00', @@session.time_zone)")
 		} else {
-			if cmap[i].operation == opYearMonth {
-				v, _ := sqltypes.ToInt64(value)
-				t := time.Unix(v, 0)
-				sql.Myprintf("%s", fmt.Sprintf("%d%02d", t.Year(), t.Month()))
-			} else {
-				value.EncodeSQL(sql)
-			}
+			simpleWrite(sql, cmap[i].operation, value)
 		}
 	}
 }
@@ -1043,14 +1047,26 @@ func writeIdentifiersAsSQL(sql *sqlparser.TrackedBuffer, cmap []columnMap, value
 			value.EncodeSQL(sql)
 			sql.WriteString(", '+00:00', @@session.time_zone)")
 		} else {
-			// TODO(sougou): duplicated code.
-			if cmap[i].operation == opYearMonth {
-				v, _ := sqltypes.ToInt64(value)
-				t := time.Unix(v, 0)
-				sql.Myprintf("%s", fmt.Sprintf("%d%02d", t.Year(), t.Month()))
-			} else {
-				value.EncodeSQL(sql)
-			}
+			simpleWrite(sql, cmap[i].operation, value)
 		}
+	}
+}
+
+func simpleWrite(sql *sqlparser.TrackedBuffer, op operation, value sqltypes.Value) {
+	switch op {
+	case opYearMonth:
+		v, _ := sqltypes.ToInt64(value)
+		t := time.Unix(v, 0)
+		sql.Myprintf("%s", fmt.Sprintf("%d%02d", t.Year(), t.Month()))
+	case opDay:
+		v, _ := sqltypes.ToInt64(value)
+		t := time.Unix(v, 0)
+		sql.Myprintf("%s", fmt.Sprintf("%d%02d%02d", t.Year(), t.Month(), t.Day()))
+	case opHour:
+		v, _ := sqltypes.ToInt64(value)
+		t := time.Unix(v, 0)
+		sql.Myprintf("%s", fmt.Sprintf("%d%02d%02d%02d", t.Year(), t.Month(), t.Day(), t.Hour()))
+	default:
+		value.EncodeSQL(sql)
 	}
 }

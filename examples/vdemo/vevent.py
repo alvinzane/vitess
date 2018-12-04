@@ -22,7 +22,7 @@ import MySQLdb as db
 
 import positions
 
-source = """keyspace:"event" shard:"-80" filter:<table_map:<key:"by_tenant" value:"select tenant_id, user_id, app, yearmonth(event_time) as mon, sum(spent) as spent, count(*) as rcount from event where in_keyrange(tenant_id, \\'hash\\', \\'-80\\')" > >"""
+source = """keyspace:"event" shard:"-80" filter:<table_map:<key:"by_tenant" value:"select tenant_id, user_id, app, hour(event_time) as mon, sum(spent) as spent, count(*) as rcount from event where in_keyrange(tenant_id, \\'hash\\', \\'-80\\')" > >"""
 cmd = [
   './lvtctl.sh',
   'VReplicationExec',
@@ -35,7 +35,7 @@ cmd = [
 print "executing:", cmd
 subprocess.call(cmd)
 
-source = """keyspace:"event" shard:"80-" filter:<table_map:<key:"by_tenant" value:"select tenant_id, user_id, app, yearmonth(event_time) as mon, sum(spent) as spent, count(*) as rcount from event where in_keyrange(tenant_id, \\'hash\\', \\'-80\\')" > >"""
+source = """keyspace:"event" shard:"80-" filter:<table_map:<key:"by_tenant" value:"select tenant_id, user_id, app, hour(event_time) as mon, sum(spent) as spent, count(*) as rcount from event where in_keyrange(tenant_id, \\'hash\\', \\'-80\\')" > >"""
 cmd = [
   './lvtctl.sh',
   'VReplicationExec',
@@ -48,7 +48,7 @@ cmd = [
 print "executing:", cmd
 subprocess.call(cmd)
 
-source = """keyspace:"event" shard:"-80" filter:<table_map:<key:"by_tenant" value:"select tenant_id, user_id, app, yearmonth(event_time) as mon, sum(spent) as spent, count(*) as rcount from event where in_keyrange(tenant_id, \\'hash\\', \\'80-\\')" > >"""
+source = """keyspace:"event" shard:"-80" filter:<table_map:<key:"by_tenant" value:"select tenant_id, user_id, app, hour(event_time) as mon, sum(spent) as spent, count(*) as rcount from event where in_keyrange(tenant_id, \\'hash\\', \\'80-\\')" > >"""
 cmd = [
   './lvtctl.sh',
   'VReplicationExec',
@@ -61,7 +61,7 @@ cmd = [
 print "executing:", cmd
 subprocess.call(cmd)
 
-source = """keyspace:"event" shard:"80-" filter:<table_map:<key:"by_tenant" value:"select tenant_id, user_id, app, yearmonth(event_time) as mon, sum(spent) as spent, count(*) as rcount from event where in_keyrange(tenant_id, \\'hash\\', \\'80-\\')" > >"""
+source = """keyspace:"event" shard:"80-" filter:<table_map:<key:"by_tenant" value:"select tenant_id, user_id, app, hour(event_time) as mon, sum(spent) as spent, count(*) as rcount from event where in_keyrange(tenant_id, \\'hash\\', \\'80-\\')" > >"""
 cmd = [
   './lvtctl.sh',
   'VReplicationExec',

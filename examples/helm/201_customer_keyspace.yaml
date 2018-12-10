@@ -22,30 +22,13 @@ topology:
                   vttablet:
                     replicas: 1
 
+vtgate:
+  serviceType: LoadBalancer
+
 jobs:
   - name: "create-customer-ks"
     kind: "vtctlclient"
     command: "CreateKeyspace -served_from='master:commerce,replica:commerce,rdonly:commerce' customer"
-
-etcd:
-  replicas: 1
-  resources:
-
-vtctld:
-  serviceType: "NodePort"
-  resources:
-
-vtgate:
-  serviceType: "NodePort"
-  resources:
-
-vttablet:
-  mysqlSize: "test"
-  resources:
-  mysqlResources:
-
-vtworker:
-  resources:
 
 pmm:
   enabled: false

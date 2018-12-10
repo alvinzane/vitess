@@ -52,25 +52,8 @@ topology:
                 }
               }
 
-etcd:
-  replicas: 1
-  resources:
-
-vtctld:
-  serviceType: "NodePort"
-  resources:
-
 vtgate:
-  serviceType: "NodePort"
-  resources:
-
-vttablet:
-  mysqlSize: "test"
-  resources:
-  mysqlResources:
-
-vtworker:
-  resources:
+  serviceType: LoadBalancer
 
 pmm:
   enabled: false

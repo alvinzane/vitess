@@ -102,6 +102,8 @@ spec:
                 -topo_implementation="etcd2"
                 -topo_global_server_address="etcd-global-client.{{ $namespace }}:2379"
                 -topo_global_root=/vitess/global
+                -wait_for_drain_sleep_rdonly=1s
+                -wait_for_drain_sleep_replica=1s
 {{ include "backup-flags" (tuple $config.backup "vtctld") | indent 16 }}
 {{ include "format-flags-all" (tuple $defaultVtctld.extraFlags .extraFlags) | indent 16 }}
               END_OF_COMMAND

@@ -38,25 +38,8 @@ jobs:
     cell: "zone1"
     command: "VerticalSplitClone -min_healthy_rdonly_tablets=1 -tables=customer,corder customer/0"
 
-etcd:
-  replicas: 1
-  resources:
-
-vtctld:
-  serviceType: "NodePort"
-  resources:
-
 vtgate:
-  serviceType: "NodePort"
-  resources:
-
-vttablet:
-  mysqlSize: "test"
-  resources:
-  mysqlResources:
-
-vtworker:
-  resources:
+  serviceType: LoadBalancer
 
 pmm:
   enabled: false

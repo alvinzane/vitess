@@ -31,7 +31,7 @@ topology:
               );
               create table customer(
                 customer_id bigint not null auto_increment,
-                email varbinary(128),
+                name varbinary(128),
                 primary key(customer_id)
               );
               create table corder(
@@ -51,25 +51,8 @@ topology:
                 }
               }
 
-etcd:
-  replicas: 1
-  resources:
-
-vtctld:
-  serviceType: "NodePort"
-  resources:
-
 vtgate:
-  serviceType: "NodePort"
-  resources:
-
-vttablet:
-  mysqlSize: "test"
-  resources:
-  mysqlResources:
-
-vtworker:
-  resources:
+  serviceType: LoadBalancer
 
 pmm:
   enabled: false

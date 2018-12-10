@@ -47,25 +47,8 @@ jobs:
     kind: "vtctlclient"
     command: "SetShardTabletControl -blacklisted_tables=customer,corder -remove commerce/0 master"
 
-etcd:
-  replicas: 1
-  resources:
-
-vtctld:
-  serviceType: "NodePort"
-  resources:
-
 vtgate:
-  serviceType: "NodePort"
-  resources:
-
-vttablet:
-  mysqlSize: "test"
-  resources:
-  mysqlResources:
-
-vtworker:
-  resources:
+  serviceType: LoadBalancer
 
 pmm:
   enabled: false

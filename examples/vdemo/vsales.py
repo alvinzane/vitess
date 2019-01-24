@@ -28,7 +28,7 @@ cmd = [
   'test-100',
   """insert into _vt.vreplication
   (source, pos, max_tps, max_replication_lag, tablet_types, time_updated, transaction_timestamp, state) values
-  ('keyspace:"user" shard:"-80" filter:<table_map:<key:"sales" value:"select pid, sum(price) as amount from user" > >', 'MySQL56/%s', 9999, 9999, 'master', 0, 0, 'Running')""" % positions.positions[200],
+  ('keyspace:"user" shard:"-80" filter:<table_map:<key:"sales" value:"select pid, sum(price) as amount from uorder" > >', 'MySQL56/%s', 9999, 9999, 'master', 0, 0, 'Running')""" % positions.positions[200],
   ]
 
 print "executing:", cmd
@@ -40,7 +40,7 @@ cmd = [
   'test-100',
   """insert into _vt.vreplication
   (source, pos, max_tps, max_replication_lag, tablet_types, time_updated, transaction_timestamp, state) values
-  ('keyspace:"user" shard:"80-" filter:<table_map:<key:"sales" value:"select pid, sum(price) as amount from user" > >', 'MySQL56/%s', 9999, 9999, 'master', 0, 0, 'Running')""" % positions.positions[300],
+  ('keyspace:"user" shard:"80-" filter:<table_map:<key:"sales" value:"select pid, sum(price) as amount from uorder" > >', 'MySQL56/%s', 9999, 9999, 'master', 0, 0, 'Running')""" % positions.positions[300],
   ]
 
 print "executing:", cmd

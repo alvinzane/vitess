@@ -1,13 +1,21 @@
 {
   "sharded": false,
   "tables": {
-    "name_user_idx": {},
     "product": {
       "columns": [
         {
           "name": "id"
         },{
           "name": "description"
+        }
+      ]
+    },
+    "sales": {
+      "columns": [
+        {
+          "name": "pid"
+        },{
+          "name": "amount"
         }
       ]
     }

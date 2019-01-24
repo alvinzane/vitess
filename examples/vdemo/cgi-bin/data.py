@@ -117,7 +117,7 @@ def main():
         conn, "product", "select * from product", response,
         keyspace="lookup", kr="-")
     exec_query(
-        conn, "name_user_idx", "select * from name_user_idx", response,
+        conn, "sales", "select * from sales", response,
         keyspace="lookup", kr="-")
 
     exec_query(

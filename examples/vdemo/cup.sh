@@ -25,10 +25,10 @@ SHARD=-80 UID_BASE=200 KEYSPACE=user ./vttablet-up.sh "$@" &
 SHARD=80- UID_BASE=300 KEYSPACE=user ./vttablet-up.sh "$@" &
 SHARD=-80 UID_BASE=400 KEYSPACE=merchant ./vttablet-up.sh "$@" &
 SHARD=80- UID_BASE=500 KEYSPACE=merchant ./vttablet-up.sh "$@" &
-SHARD=-80 UID_BASE=600 KEYSPACE=event ./vttablet-up.sh "$@" &
-SHARD=80- UID_BASE=700 KEYSPACE=event ./vttablet-up.sh "$@" &
-SHARD=-80 UID_BASE=800 KEYSPACE=rollup ./vttablet-up.sh "$@" &
-SHARD=80- UID_BASE=900 KEYSPACE=rollup ./vttablet-up.sh "$@" &
+#SHARD=-80 UID_BASE=600 KEYSPACE=event ./vttablet-up.sh "$@" &
+#SHARD=80- UID_BASE=700 KEYSPACE=event ./vttablet-up.sh "$@" &
+#SHARD=-80 UID_BASE=800 KEYSPACE=rollup ./vttablet-up.sh "$@" &
+#SHARD=80- UID_BASE=900 KEYSPACE=rollup ./vttablet-up.sh "$@" &
 wait
 
 sleep 10s
@@ -37,10 +37,10 @@ sleep 10s
 ./lvtctl.sh InitShardMaster -force user/80- test-300 &
 ./lvtctl.sh InitShardMaster -force merchant/-80 test-400 &
 ./lvtctl.sh InitShardMaster -force merchant/80- test-500 &
-./lvtctl.sh InitShardMaster -force event/-80 test-600 &
-./lvtctl.sh InitShardMaster -force event/80- test-700 &
-./lvtctl.sh InitShardMaster -force rollup/-80 test-800 &
-./lvtctl.sh InitShardMaster -force rollup/80- test-900 &
+#./lvtctl.sh InitShardMaster -force event/-80 test-600 &
+#./lvtctl.sh InitShardMaster -force event/80- test-700 &
+#./lvtctl.sh InitShardMaster -force rollup/-80 test-800 &
+#./lvtctl.sh InitShardMaster -force rollup/80- test-900 &
 wait
 
 ./lvtctl.sh ApplySchema -sql "$(cat lookup.sql)" lookup
@@ -49,10 +49,10 @@ wait
 ./lvtctl.sh ApplyVSchema -vschema "$(cat user.json)" user
 ./lvtctl.sh ApplySchema -sql "$(cat merchant.sql)" merchant
 ./lvtctl.sh ApplyVSchema -vschema "$(cat merchant.json)" merchant
-./lvtctl.sh ApplySchema -sql "$(cat event.sql)" event
-./lvtctl.sh ApplyVSchema -vschema "$(cat event.json)" event
-./lvtctl.sh ApplySchema -sql "$(cat rollup.sql)" rollup
-./lvtctl.sh ApplyVSchema -vschema "$(cat rollup.json)" rollup
+#./lvtctl.sh ApplySchema -sql "$(cat event.sql)" event
+#./lvtctl.sh ApplyVSchema -vschema "$(cat event.json)" event
+#./lvtctl.sh ApplySchema -sql "$(cat rollup.sql)" rollup
+#./lvtctl.sh ApplyVSchema -vschema "$(cat rollup.json)" rollup
 ./vtgate-up.sh
 
 sleep 5s

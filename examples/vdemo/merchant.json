@@ -37,6 +37,8 @@
           "name": "mname"
         },{
           "name": "pid"
+        },{
+          "name": "price"
         }
       ]
     }

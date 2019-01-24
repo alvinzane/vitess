@@ -47,8 +47,6 @@
       <div class="col-md-2">
         <div data-ng-repeat="curResult in [result.product]"
           data-ng-include="'result.html'"></div>
-        <div data-ng-repeat="curResult in [result.name_user_idx]"
-          data-ng-include="'result.html'"></div>
       </div>
       <div class="col-md-2">
         <div data-ng-repeat="curResult in [result.user0]"
@@ -69,9 +67,13 @@
       <div class="col-md-2">
         <div data-ng-repeat="curResult in [result.merchant0]"
           data-ng-include="'result.html'"></div>
+        <div data-ng-repeat="curResult in [result.morder0]"
+          data-ng-include="'result.html'"></div>
       </div>
       <div class="col-md-2">
         <div data-ng-repeat="curResult in [result.merchant1]"
+          data-ng-include="'result.html'"></div>
+        <div data-ng-repeat="curResult in [result.morder1]"
           data-ng-include="'result.html'"></div>
       </div>
     </div>

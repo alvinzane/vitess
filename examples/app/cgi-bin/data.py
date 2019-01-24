@@ -54,7 +54,7 @@ def get_value(args, name):
 def main():
   print "Content-Type: application/json\n"
   try:
-    conn = db.connect(host="vtgate-zone1", port=3306)
+    conn = db.connect(host="127.0.0.1", port=15306)
 
     args = cgi.FieldStorage()
     response = {}

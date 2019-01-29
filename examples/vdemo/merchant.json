@@ -1,0 +1,46 @@
+{
+  "sharded": true,
+  "vindexes": {
+    "md5": {
+      "type": "unicode_loose_md5"
+    }
+  },
+  "tables": {
+    "merchant": {
+      "column_vindexes": [
+        {
+          "column": "name",
+          "name": "md5"
+        }
+      ],
+      "columns": [
+        {
+          "name": "name"
+        },{
+          "name": "category"
+        }
+      ]
+    },
+    "morder": {
+      "column_vindexes": [
+        {
+          "column": "mname",
+          "name": "md5"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id"
+        },{
+          "name": "uid"
+        },{
+          "name": "mname"
+        },{
+          "name": "pid"
+        },{
+          "name": "price"
+        }
+      ]
+    }
+  }
+}

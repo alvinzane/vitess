@@ -1,0 +1,58 @@
+{
+  "sharded": true,
+  "vindexes": {
+    "hash": {
+      "type": "hash"
+    }
+  },
+  "tables": {
+    "user": {
+      "column_vindexes": [
+        {
+          "column": "id",
+          "name": "hash"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id"
+        },{
+          "name": "name"
+        },{
+          "name": "balance"
+        }
+      ]
+    },
+    "uorder": {
+      "column_vindexes": [
+        {
+          "column": "uid",
+          "name": "hash"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id"
+        },{
+          "name": "uid"
+        },{
+          "name": "mname"
+        },{
+          "name": "pid"
+        },{
+          "name": "price"
+        }
+      ]
+    },
+    "uproduct": {
+      "type": "reference",
+      "columns": [
+        {
+          "name": "id"
+        },{
+          "name": "description"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "sharded": false,
+  "tables": {
+    "product": {
+      "columns": [
+        {
+          "name": "id"
+        },{
+          "name": "description"
+        }
+      ]
+    },
+    "sales": {
+      "columns": [
+        {
+          "name": "pid"
+        },{
+          "name": "amount"
+        }
+      ]
+    }
+  }
+}

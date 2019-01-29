@@ -1,0 +1,18 @@
+{
+  "sharded": true,
+  "vindexes": {
+    "hash": {
+      "type": "hash"
+    }
+  },
+  "tables": {
+    "event": {
+      "column_vindexes": [
+        {
+          "column": "id",
+          "name": "hash"
+        }
+      ]
+    }
+  }
+}

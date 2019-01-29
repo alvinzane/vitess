@@ -1,0 +1,18 @@
+{
+  "sharded": true,
+  "vindexes": {
+    "hash": {
+      "type": "hash"
+    }
+  },
+  "tables": {
+    "by_tenant": {
+      "column_vindexes": [
+        {
+          "column": "tenant_id",
+          "name": "hash"
+        }
+      ]
+    }
+  }
+}

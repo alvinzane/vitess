@@ -18,9 +18,7 @@
 
 import subprocess
 
-import MySQLdb as db
-
-import positions
+dbname = "vt_merchant"
 
 source = """keyspace:"user" shard:"-80" filter:<rules:<match:"morder" filter:"select * from uorder where in_keyrange(mname, \\'unicode_loose_md5\\', \\'-80\\')" > >"""
 cmd = [
@@ -28,8 +26,8 @@ cmd = [
   'VReplicationExec',
   'test-400',
   """insert into _vt.vreplication
-  (source, pos, max_tps, max_replication_lag, tablet_types, time_updated, transaction_timestamp, state) values
-  ('%s', 'MySQL56/%s', 9999, 9999, 'master', 0, 0, 'Running')""" % (source, positions.positions[200]),
+  (db_name, source, pos, max_tps, max_replication_lag, tablet_types, time_updated, transaction_timestamp, state) values
+  ('%s', '%s', '', 9999, 9999, 'master', 0, 0, 'Running')""" % (dbname, source),
   ]
 
 print "executing:", cmd
@@ -41,8 +39,8 @@ cmd = [
   'VReplicationExec',
   'test-400',
   """insert into _vt.vreplication
-  (source, pos, max_tps, max_replication_lag, tablet_types, time_updated, transaction_timestamp, state) values
-  ('%s', 'MySQL56/%s', 9999, 9999, 'master', 0, 0, 'Running')""" % (source, positions.positions[300]),
+  (db_name, source, pos, max_tps, max_replication_lag, tablet_types, time_updated, transaction_timestamp, state) values
+  ('%s', '%s', '', 9999, 9999, 'master', 0, 0, 'Running')""" % (dbname, source),
   ]
 
 print "executing:", cmd
@@ -54,8 +52,8 @@ cmd = [
   'VReplicationExec',
   'test-500',
   """insert into _vt.vreplication
-  (source, pos, max_tps, max_replication_lag, tablet_types, time_updated, transaction_timestamp, state) values
-  ('%s', 'MySQL56/%s', 9999, 9999, 'master', 0, 0, 'Running')""" % (source, positions.positions[200]),
+  (db_name, source, pos, max_tps, max_replication_lag, tablet_types, time_updated, transaction_timestamp, state) values
+  ('%s', '%s', '', 9999, 9999, 'master', 0, 0, 'Running')""" % (dbname, source),
   ]
 
 print "executing:", cmd
@@ -67,8 +65,17 @@ cmd = [
   'VReplicationExec',
   'test-500',
   """insert into _vt.vreplication
-  (source, pos, max_tps, max_replication_lag, tablet_types, time_updated, transaction_timestamp, state) values
-  ('%s', 'MySQL56/%s', 9999, 9999, 'master', 0, 0, 'Running')""" % (source, positions.positions[300]),
+  (db_name, source, pos, max_tps, max_replication_lag, tablet_types, time_updated, transaction_timestamp, state) values
+  ('%s', '%s', '', 9999, 9999, 'master', 0, 0, 'Running')""" % (dbname, source),
+  ]
+
+print "executing:", cmd
+subprocess.call(cmd)
+
+cmd = [
+  './lvtctl.sh',
+  'ApplyRoutingRules',
+  """-rules={"rules": [{"from_table": "product","to_tables": ["lookup.product", "user.uproduct"]}, {"from_table": "orders","to_tables": ["user.uorder", "merchant.morder"]}]}""",
   ]
 
 print "executing:", cmd

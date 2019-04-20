@@ -15,11 +15,13 @@
       ],
       "columns": [
         {
-          "name": "name"
+          "name": "name",
+          "type": "VARCHAR"
         },{
           "name": "category"
         }
-      ]
+      ],
+      "column_list_authoritative": true
     },
     "morder": {
       "column_vindexes": [
@@ -34,13 +36,15 @@
         },{
           "name": "uid"
         },{
-          "name": "mname"
+          "name": "mname",
+          "type": "VARCHAR"
         },{
           "name": "pid"
         },{
           "name": "price"
         }
-      ]
+      ],
+      "column_list_authoritative": true
     }
   }
 }

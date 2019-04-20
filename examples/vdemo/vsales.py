@@ -18,17 +18,15 @@
 
 import subprocess
 
-import MySQLdb as db
-
-import positions
+dbname = "vt_lookup"
 
 cmd = [
   './lvtctl.sh',
   'VReplicationExec',
   'test-100',
   """insert into _vt.vreplication
-  (source, pos, max_tps, max_replication_lag, tablet_types, time_updated, transaction_timestamp, state) values
-  ('keyspace:"user" shard:"-80" filter:<rules:<match:"sales" filter:"select pid, sum(price) as amount from uorder group by pid" > >', 'MySQL56/%s', 9999, 9999, 'master', 0, 0, 'Running')""" % positions.positions[200],
+  (db_name, source, pos, max_tps, max_replication_lag, tablet_types, time_updated, transaction_timestamp, state) values
+  ('%s', 'keyspace:"user" shard:"-80" filter:<rules:<match:"sales" filter:"select pid, count(*) as kount, sum(price) as amount from uorder group by pid" > >', '', 9999, 9999, 'master', 0, 0, 'Running')""" % (dbname),
   ]
 
 print "executing:", cmd
@@ -39,8 +37,8 @@ cmd = [
   'VReplicationExec',
   'test-100',
   """insert into _vt.vreplication
-  (source, pos, max_tps, max_replication_lag, tablet_types, time_updated, transaction_timestamp, state) values
-  ('keyspace:"user" shard:"80-" filter:<rules:<match:"sales" filter:"select pid, sum(price) as amount from uorder group by pid" > >', 'MySQL56/%s', 9999, 9999, 'master', 0, 0, 'Running')""" % positions.positions[300],
+  (db_name, source, pos, max_tps, max_replication_lag, tablet_types, time_updated, transaction_timestamp, state) values
+  ('%s', 'keyspace:"user" shard:"80-" filter:<rules:<match:"sales" filter:"select pid, count(*) as kount, sum(price) as amount from uorder group by pid" > >', '', 9999, 9999, 'master', 0, 0, 'Running')""" % (dbname),
   ]
 
 print "executing:", cmd

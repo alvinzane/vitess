@@ -18,17 +18,15 @@
 
 import subprocess
 
-import MySQLdb as db
-
-import positions
+dbname = "vt_user"
 
 cmd = [
   './lvtctl.sh',
   'VReplicationExec',
   'test-200',
   """insert into _vt.vreplication
-  (source, pos, max_tps, max_replication_lag, tablet_types, time_updated, transaction_timestamp, state) values
-  ('keyspace:"lookup" shard:"0" filter:<rules:<match:"uproduct" filter:"select * from product" > >', 'MySQL56/%s', 9999, 9999, 'master', 0, 0, 'Running')""" % positions.positions[100],
+  (db_name, source, pos, max_tps, max_replication_lag, tablet_types, time_updated, transaction_timestamp, state) values
+  ('%s', 'keyspace:"lookup" shard:"0" filter:<rules:<match:"uproduct" filter:"select * from product" > >', '', 9999, 9999, 'master', 0, 0, 'Running')""" % (dbname),
   ]
 
 print "executing:", cmd
@@ -39,8 +37,17 @@ cmd = [
   'VReplicationExec',
   'test-300',
   """insert into _vt.vreplication
-  (source, pos, max_tps, max_replication_lag, tablet_types, time_updated, transaction_timestamp, state) values
-  ('keyspace:"lookup" shard:"0" filter:<rules:<match:"uproduct" filter:"select * from product" > >', 'MySQL56/%s', 9999, 9999, 'master', 0, 0, 'Running')""" % positions.positions[100],
+  (db_name, source, pos, max_tps, max_replication_lag, tablet_types, time_updated, transaction_timestamp, state) values
+  ('%s','keyspace:"lookup" shard:"0" filter:<rules:<match:"uproduct" filter:"select * from product" > >', '', 9999, 9999, 'master', 0, 0, 'Running')""" % (dbname),
+  ]
+
+print "executing:", cmd
+subprocess.call(cmd)
+
+cmd = [
+  './lvtctl.sh',
+  'ApplyRoutingRules',
+  """-rules={"rules": [{"from_table": "product","to_tables": ["lookup.product", "user.uproduct"]}]}""",
   ]
 
 print "executing:", cmd

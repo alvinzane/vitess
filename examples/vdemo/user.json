@@ -17,11 +17,13 @@
         {
           "name": "id"
         },{
-          "name": "name"
+          "name": "name",
+          "type": "VARCHAR"
         },{
           "name": "balance"
         }
-      ]
+      ],
+      "column_list_authoritative": true
     },
     "uorder": {
       "column_vindexes": [
@@ -36,13 +38,15 @@
         },{
           "name": "uid"
         },{
-          "name": "mname"
+          "name": "mname",
+          "type": "VARCHAR"
         },{
           "name": "pid"
         },{
           "name": "price"
         }
-      ]
+      ],
+      "column_list_authoritative": true
     },
     "uproduct": {
       "type": "reference",
@@ -50,9 +54,11 @@
         {
           "name": "id"
         },{
-          "name": "description"
+          "name": "description",
+          "type": "VARCHAR"
         }
-      ]
+      ],
+      "column_list_authoritative": true
     }
   }
 }

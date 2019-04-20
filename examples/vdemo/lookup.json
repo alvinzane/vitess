@@ -6,18 +6,23 @@
         {
           "name": "id"
         },{
-          "name": "description"
+          "name": "description",
+          "type": "VARCHAR"
         }
-      ]
+      ],
+      "column_list_authoritative": true
     },
     "sales": {
       "columns": [
         {
           "name": "pid"
         },{
+          "name": "kount"
+        },{
           "name": "amount"
         }
-      ]
+      ],
+      "column_list_authoritative": true
     }
   }
 }

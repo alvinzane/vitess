@@ -1396,7 +1396,7 @@ type migrationInfo struct {
 
 // MigrateWrites is a proof-of-concept code for a VReplication
 // based cutover of writes. Not production ready.
-func (wr *Wrangler) MigrateWrites(ctx context.Context, to map[topo.KeyspaceShard][]uint32) error {
+func (wr *Wrangler) MigrateWrites(ctx context.Context, to map[topo.KeyspaceShard][]uint32, filteredReplicationWaitTime time.Duration) error {
 	// Build metadata.
 	toShards := make(map[topo.KeyspaceShard]*migrationInfo)
 	fromShards := make(map[topo.KeyspaceShard]*migrationInfo)
@@ -1462,7 +1462,7 @@ func (wr *Wrangler) MigrateWrites(ctx context.Context, to map[topo.KeyspaceShard
 		tables = append(tables, t)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, filteredReplicationWaitTime)
 	defer cancel()
 
 	// Blacklist source tables.

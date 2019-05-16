@@ -319,6 +319,9 @@ var commands = []commandGroup{
 			{"MigrateServedFrom", commandMigrateServedFrom,
 				"[-cells=c1,c2,...] [-reverse] <destination keyspace/shard> <served tablet type>",
 				"Makes the <destination keyspace/shard> serve the given type. This command also rebuilds the serving graph."},
+			{"MigrateWrites", commandMigrateWrites,
+				"<stream spec>",
+				"Demo feature. Migrates writes for the specified streams. Example 'ks:-80:1,2/ks:80-:2,3'"},
 			{"CancelResharding", commandCancelResharding,
 				"<keyspace/shard>",
 				"Permanently cancels a resharding in progress. All resharding related metadata will be deleted."},
@@ -1806,6 +1809,36 @@ func commandMigrateServedFrom(ctx context.Context, wr *wrangler.Wrangler, subFla
 		cells = strings.Split(*cellsStr, ",")
 	}
 	return wr.MigrateServedFrom(ctx, keyspace, shard, servedType, cells, *reverse, *filteredReplicationWaitTime, *reverseReplication)
+}
+
+func commandMigrateWrites(ctx context.Context, wr *wrangler.Wrangler, subFlags *flag.FlagSet, args []string) error {
+	filteredReplicationWaitTime := subFlags.Duration("filtered_replication_wait_time", 30*time.Second, "Specifies the maximum time to wait, in seconds, for filtered replication to catch up on master migrations")
+	if err := subFlags.Parse(args); err != nil {
+		return err
+	}
+	if subFlags.NArg() != 1 {
+		return fmt.Errorf("missing stream-spec")
+	}
+
+	parts := strings.Split(subFlags.Arg(0), "/")
+	to := make(map[topo.KeyspaceShard][]uint32)
+	for _, part := range parts {
+		subparts := strings.Split(part, ":")
+		if len(subparts) != 3 {
+			return fmt.Errorf("malformed part: %s", part)
+		}
+		var ids []uint32
+		sids := strings.Split(subparts[2], ",")
+		for _, sid := range sids {
+			num, err := strconv.Atoi(sid)
+			if err != nil {
+				return err
+			}
+			ids = append(ids, uint32(num))
+		}
+		to[topo.KeyspaceShard{Keyspace: subparts[0], Shard: subparts[1]}] = ids
+	}
+	return wr.MigrateWrites(ctx, to, *filteredReplicationWaitTime)
 }
 
 func commandCancelResharding(ctx context.Context, wr *wrangler.Wrangler, subFlags *flag.FlagSet, args []string) error {

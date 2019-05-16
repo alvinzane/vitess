@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 	"vitess.io/vitess/go/event"
 	"vitess.io/vitess/go/sqltypes"
@@ -1382,6 +1383,138 @@ func (wr *Wrangler) masterMigrateServedFrom(ctx context.Context, sourceShard, de
 		return wr.startReverseReplication(ctx, []*topo.ShardInfo{sourceShard})
 	}
 	return nil
+}
+
+type migrationInfo struct {
+	shard  *topo.ShardInfo
+	tablet *topo.TabletInfo
+	// destination info
+	sources map[uint32]*binlogdatapb.BinlogSource
+	// source info
+	position string
+}
+
+// MigrateWrites is a proof-of-concept code for a VReplication
+// based cutover of writes. Not production ready.
+func (wr *Wrangler) MigrateWrites(ctx context.Context, to map[topo.KeyspaceShard][]uint32) error {
+	// Build metadata.
+	toShards := make(map[topo.KeyspaceShard]*migrationInfo)
+	fromShards := make(map[topo.KeyspaceShard]*migrationInfo)
+	tableMap := make(map[string]bool)
+	var fromKeyspace, toKeyspace string
+	for ks, uids := range to {
+		shard, err := wr.ts.GetShard(ctx, ks.Keyspace, ks.Shard)
+		if err != nil {
+			return err
+		}
+		tablet, err := wr.ts.GetTablet(ctx, shard.MasterAlias)
+		if err != nil {
+			return err
+		}
+		toShards[ks] = &migrationInfo{
+			shard:   shard,
+			tablet:  tablet,
+			sources: make(map[uint32]*binlogdatapb.BinlogSource),
+		}
+		if toKeyspace == "" {
+			toKeyspace = ks.Keyspace
+		}
+		for _, uid := range uids {
+			p3qr, err := wr.tmc.VReplicationExec(ctx, tablet.Tablet, fmt.Sprintf("select source from _vt.vreplication where id=%d", uid))
+			if err != nil {
+				return err
+			}
+			qr := sqltypes.Proto3ToResult(p3qr)
+			str := qr.Rows[0][0].ToString()
+			var source binlogdatapb.BinlogSource
+			if err := proto.UnmarshalText(str, &source); err != nil {
+				return err
+			}
+			toShards[ks].sources[uid] = &source
+
+			sourceks := topo.KeyspaceShard{Keyspace: source.Keyspace, Shard: source.Shard}
+			if _, ok := fromShards[sourceks]; !ok {
+				sourceShard, err := wr.ts.GetShard(ctx, source.Keyspace, source.Shard)
+				if err != nil {
+					return err
+				}
+				sourceTablet, err := wr.ts.GetTablet(ctx, sourceShard.MasterAlias)
+				if err != nil {
+					return err
+				}
+				fromShards[sourceks] = &migrationInfo{
+					shard:  sourceShard,
+					tablet: sourceTablet,
+				}
+
+				for _, rule := range source.Filter.Rules {
+					tableMap[rule.Match] = true
+				}
+
+				if fromKeyspace == "" {
+					fromKeyspace = sourceks.Keyspace
+				}
+			}
+		}
+	}
+	tables := make([]string, 0, len(tableMap))
+	for t := range tableMap {
+		tables = append(tables, t)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	// Blacklist source tables.
+	for ks := range fromShards {
+		if _, err := wr.ts.UpdateShardFields(ctx, ks.Keyspace, ks.Shard, func(si *topo.ShardInfo) error {
+			return si.UpdateSourceBlacklistedTables(ctx, topodatapb.TabletType_MASTER, nil, false, tables)
+		}); err != nil {
+			return err
+		}
+		if err := wr.tmc.RefreshState(ctx, fromShards[ks].tablet.Tablet); err != nil {
+			return err
+		}
+		position, err := wr.tmc.MasterPosition(ctx, fromShards[ks].tablet.Tablet)
+		if err != nil {
+			return err
+		}
+		fromShards[ks].position = position
+	}
+
+	// Wait for vreplication to catch up.
+	for ks, toShard := range toShards {
+		for uid, source := range toShard.sources {
+			sourceShard := fromShards[topo.KeyspaceShard{Keyspace: source.Keyspace, Shard: source.Shard}]
+			if err := wr.tmc.VReplicationWaitForPos(ctx, toShards[ks].tablet.Tablet, int(uid), sourceShard.position); err != nil {
+				return err
+			}
+			if _, err := wr.tmc.VReplicationExec(ctx, toShards[ks].tablet.Tablet, binlogplayer.StopVReplication(uid, "stopped for cutover")); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Update routing rules
+	rules, err := wr.getRoutingRules(ctx)
+	if err != nil {
+		return err
+	}
+	for _, table := range tables {
+		for _, tabletType := range []topodatapb.TabletType{topodatapb.TabletType_REPLICA, topodatapb.TabletType_RDONLY} {
+			tt := strings.ToLower(tabletType.String())
+			delete(rules, table+"@"+tt)
+			delete(rules, fromKeyspace+"."+table+"@"+tt)
+			delete(rules, toKeyspace+"."+table+"@"+tt)
+		}
+		delete(rules, toKeyspace+"."+table)
+		rules[table] = []string{toKeyspace + "." + table}
+		rules[fromKeyspace+"."+table] = []string{toKeyspace + "." + table}
+	}
+	if err := wr.saveRoutingRules(ctx, rules); err != nil {
+		return err
+	}
+	return topotools.RebuildVSchema(ctx, wr.logger, wr.ts, nil)
 }
 
 // SetKeyspaceServedFrom locks a keyspace and changes its ServerFromMap

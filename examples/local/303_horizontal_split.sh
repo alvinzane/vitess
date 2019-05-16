@@ -22,17 +22,8 @@ set -e
 # shellcheck disable=SC2128
 script_root=$(dirname "${BASH_SOURCE}")
 
-# shellcheck source=./env.sh
 # shellcheck disable=SC1091
 source "${script_root}/env.sh"
 
-# shellcheck disable=SC2086
-"$VTROOT"/bin/vtworker \
-    $TOPOLOGY_FLAGS \
-    -cell zone1 \
-    -log_dir "$VTDATAROOT"/tmp \
-    -alsologtostderr \
-    -use_v3_resharding_mode \
-    SplitClone -min_healthy_rdonly_tablets=1 customer/0
-
-disown -a
+./lvtctl.sh VReplicationExec zone1-300 'insert into _vt.vreplication (db_name, source, pos, max_tps, max_replication_lag, tablet_types, time_updated, transaction_timestamp, state) values('"'"'vt_customer'"'"', '"'"'keyspace:\"commerce\" shard:\"0\" filter:<rules:<match:\"customer\" filter:\"select * from customer where in_keyrange(customer_id, \'"'"'hash\'"'"', \'"'"'-80\'"'"')\" > > '"'"', '"'"''"'"', 9999, 9999, '"'"'master'"'"', 0, 0, '"'"'Running'"'"')'
+./lvtctl.sh VReplicationExec zone1-400 'insert into _vt.vreplication (db_name, source, pos, max_tps, max_replication_lag, tablet_types, time_updated, transaction_timestamp, state) values('"'"'vt_customer'"'"', '"'"'keyspace:\"commerce\" shard:\"0\" filter:<rules:<match:\"customer\" filter:\"select * from customer where in_keyrange(customer_id, \'"'"'hash\'"'"', \'"'"'80-\'"'"')\" > > '"'"', '"'"''"'"', 9999, 9999, '"'"'master'"'"', 0, 0, '"'"'Running'"'"')'

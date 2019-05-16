@@ -18,7 +18,4 @@
 
 set -e
 
-./lvtctl.sh MigrateServedTypes customer/0 master
-# data has been copied over to shards, and databases for the new shards are now available
-
-disown -a
+./lvtctl.sh MigrateWrites 'customer:-80:1/customer:80-:1'

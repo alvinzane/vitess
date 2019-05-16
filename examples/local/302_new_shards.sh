@@ -27,7 +27,9 @@ SHARD=80- CELL=zone1 KEYSPACE=customer UID_BASE=400 "$script_root/vttablet-up.sh
 sleep 15
 ./lvtctl.sh InitShardMaster -force customer/-80 zone1-300
 ./lvtctl.sh InitShardMaster -force customer/80- zone1-400
-./lvtctl.sh CopySchemaShard customer/0 customer/-80
-./lvtctl.sh CopySchemaShard customer/0 customer/80-
+./lvtctl.sh CopySchemaShard -tables customer,corder commerce/0 customer/-80
+./lvtctl.sh CopySchemaShard -tables customer,corder commerce/0 customer/80-
+./lvtctl.sh ApplyRoutingRules -rules='{"rules": [{"from_table": "customer","to_tables": ["commerce.customer"]}, {"from_table": "corder","to_tables": ["commerce.corder"]}]}'
+./lvtctl.sh ApplyVSchema -vschema_file vschema_customer_sharded.json customer
 
 disown -a

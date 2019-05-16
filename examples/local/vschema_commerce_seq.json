@@ -1,10 +1,27 @@
 {
+    "vindexes": {
+        "hash": {
+            "type": "hash"
+        }
+    },
     "tables": {
         "customer_seq": {
             "type": "sequence"
         },
         "order_seq": {
             "type": "sequence"
+        },
+        "customer": {
+            "auto_increment": {
+                "column": "customer_id",
+                "sequence": "customer_seq"
+            }
+        },
+        "corder": {
+            "auto_increment": {
+                "column": "order_id",
+                "sequence": "order_seq"
+            }
         },
         "product": {}
     }

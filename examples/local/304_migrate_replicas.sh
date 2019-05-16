@@ -18,7 +18,4 @@
 
 set -e
 
-./lvtctl.sh MigrateServedTypes customer/0 rdonly
-./lvtctl.sh MigrateServedTypes customer/0 replica
-
-disown -a
+./lvtctl.sh ApplyRoutingRules -rules='{"rules": [{"from_table": "customer@replica","to_tables": ["customer.customer"]}, {"from_table": "customer","to_tables": ["commerce.customer"]}, {"from_table": "corder@replica","to_tables": ["customer.corder"]}, {"from_table": "corder","to_tables": ["commerce.corder"]}]}'

@@ -32,6 +32,7 @@ import (
 	"vitess.io/vitess/go/vt/concurrency"
 	"vitess.io/vitess/go/vt/discovery"
 	"vitess.io/vitess/go/vt/key"
+	"vitess.io/vitess/go/vt/log"
 	binlogdatapb "vitess.io/vitess/go/vt/proto/binlogdata"
 	topodatapb "vitess.io/vitess/go/vt/proto/topodata"
 	vschemapb "vitess.io/vitess/go/vt/proto/vschema"
@@ -1405,10 +1406,12 @@ func (wr *Wrangler) MigrateWrites(ctx context.Context, to map[topo.KeyspaceShard
 	for ks, uids := range to {
 		shard, err := wr.ts.GetShard(ctx, ks.Keyspace, ks.Shard)
 		if err != nil {
+			log.Errorf("%v", err)
 			return err
 		}
 		tablet, err := wr.ts.GetTablet(ctx, shard.MasterAlias)
 		if err != nil {
+			log.Errorf("%v", err)
 			return err
 		}
 		toShards[ks] = &migrationInfo{
@@ -1422,12 +1425,18 @@ func (wr *Wrangler) MigrateWrites(ctx context.Context, to map[topo.KeyspaceShard
 		for _, uid := range uids {
 			p3qr, err := wr.tmc.VReplicationExec(ctx, tablet.Tablet, fmt.Sprintf("select source from _vt.vreplication where id=%d", uid))
 			if err != nil {
+				log.Errorf("%v", err)
 				return err
 			}
 			qr := sqltypes.Proto3ToResult(p3qr)
+			log.Infof("p3qr: %v, qr: %v", p3qr, qr)
+			if len(qr.Rows) < 1 || len(qr.Rows[0]) < 1 {
+				return fmt.Errorf("VReplication stream %d not found for %s:%s", int(uid), ks.Keyspace, ks.Shard)
+			}
 			str := qr.Rows[0][0].ToString()
 			var source binlogdatapb.BinlogSource
 			if err := proto.UnmarshalText(str, &source); err != nil {
+				log.Errorf("%v", err)
 				return err
 			}
 			toShards[ks].sources[uid] = &source
@@ -1436,10 +1445,12 @@ func (wr *Wrangler) MigrateWrites(ctx context.Context, to map[topo.KeyspaceShard
 			if _, ok := fromShards[sourceks]; !ok {
 				sourceShard, err := wr.ts.GetShard(ctx, source.Keyspace, source.Shard)
 				if err != nil {
+					log.Errorf("%v", err)
 					return err
 				}
 				sourceTablet, err := wr.ts.GetTablet(ctx, sourceShard.MasterAlias)
 				if err != nil {
+					log.Errorf("%v", err)
 					return err
 				}
 				fromShards[sourceks] = &migrationInfo{
@@ -1470,13 +1481,16 @@ func (wr *Wrangler) MigrateWrites(ctx context.Context, to map[topo.KeyspaceShard
 		if _, err := wr.ts.UpdateShardFields(ctx, ks.Keyspace, ks.Shard, func(si *topo.ShardInfo) error {
 			return si.UpdateSourceBlacklistedTables(ctx, topodatapb.TabletType_MASTER, nil, false, tables)
 		}); err != nil {
+			log.Errorf("%v", err)
 			return err
 		}
 		if err := wr.tmc.RefreshState(ctx, fromShards[ks].tablet.Tablet); err != nil {
+			log.Errorf("%v", err)
 			return err
 		}
 		position, err := wr.tmc.MasterPosition(ctx, fromShards[ks].tablet.Tablet)
 		if err != nil {
+			log.Errorf("%v", err)
 			return err
 		}
 		fromShards[ks].position = position
@@ -1487,9 +1501,11 @@ func (wr *Wrangler) MigrateWrites(ctx context.Context, to map[topo.KeyspaceShard
 		for uid, source := range toShard.sources {
 			sourceShard := fromShards[topo.KeyspaceShard{Keyspace: source.Keyspace, Shard: source.Shard}]
 			if err := wr.tmc.VReplicationWaitForPos(ctx, toShards[ks].tablet.Tablet, int(uid), sourceShard.position); err != nil {
+				log.Errorf("%v", err)
 				return err
 			}
 			if _, err := wr.tmc.VReplicationExec(ctx, toShards[ks].tablet.Tablet, binlogplayer.StopVReplication(uid, "stopped for cutover")); err != nil {
+				log.Errorf("%v", err)
 				return err
 			}
 		}
@@ -1498,6 +1514,7 @@ func (wr *Wrangler) MigrateWrites(ctx context.Context, to map[topo.KeyspaceShard
 	// Update routing rules
 	rules, err := wr.getRoutingRules(ctx)
 	if err != nil {
+		log.Errorf("%v", err)
 		return err
 	}
 	for _, table := range tables {
@@ -1512,6 +1529,7 @@ func (wr *Wrangler) MigrateWrites(ctx context.Context, to map[topo.KeyspaceShard
 		rules[fromKeyspace+"."+table] = []string{toKeyspace + "." + table}
 	}
 	if err := wr.saveRoutingRules(ctx, rules); err != nil {
+		log.Errorf("%v", err)
 		return err
 	}
 	return topotools.RebuildVSchema(ctx, wr.logger, wr.ts, nil)

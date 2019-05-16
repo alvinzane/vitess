@@ -2,3 +2,5 @@ create table customer_seq(id int, next_id bigint, cache bigint, primary key(id))
 insert into customer_seq(id, next_id, cache) values(0, 1000, 100);
 create table order_seq(id int, next_id bigint, cache bigint, primary key(id)) comment 'vitess_sequence';
 insert into order_seq(id, next_id, cache) values(0, 1000, 100);
+alter table customer change customer_id customer_id bigint not null;
+alter table corder change order_id order_id bigint not null;

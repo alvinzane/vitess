@@ -378,9 +378,6 @@ func (si *ShardInfo) GetTabletControl(tabletType topodatapb.TabletType) *topodat
 //
 // This function should be called while holding the keyspace lock.
 func (si *ShardInfo) UpdateSourceBlacklistedTables(ctx context.Context, tabletType topodatapb.TabletType, cells []string, remove bool, tables []string) error {
-	if err := CheckKeyspaceLocked(ctx, si.keyspace); err != nil {
-		return err
-	}
 	tc := si.GetTabletControl(tabletType)
 	if tc == nil {
 		// handle the case where the TabletControl object is new

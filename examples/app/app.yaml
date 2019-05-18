@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: commerce
-        image: sougou/test:latest
+        image: sougou/barcelona:latest
         ports:
         - containerPort: 8000
 

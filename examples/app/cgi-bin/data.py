@@ -54,7 +54,11 @@ def get_value(args, name):
 def main():
   print "Content-Type: application/json\n"
   try:
-    conn = db.connect(host="vtgate-vitess-demo-zone1", port=3306, user="mysql_user", passwd="mysql_password")
+    conn = db.connect(
+      host="vtgate-vitess-demo-zone1",
+      port=3306,
+      user="mysql_user",
+      passwd="mysql_password")
 
     args = cgi.FieldStorage()
     response = {}
@@ -89,6 +93,7 @@ def main():
     exec_query(conn, "product", "select * from product order by sku desc limit 20", response)
     exec_query(conn, "customer", "select customer_id, email name from customer order by customer_id desc limit 20", response)
     exec_query(conn, "corder", "select order_id, customer_id, sku, price from corder order by order_id desc limit 20", response)
+    conn.close()
 
     if response.get("error"):
       print >> sys.stderr, response["error"]

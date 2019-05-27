@@ -18,5 +18,5 @@
 
 source kalias.source
 
-$kvtctl CopySchemaShard -tables product product/0 customer/-80
-$kvtctl CopySchemaShard -tables product product/0 customer/80-
+$kvtctl CopySchemaShard -tables orders customer/-80 merchant/-80
+$kvtctl CopySchemaShard -tables orders customer/-80 merchant/80-

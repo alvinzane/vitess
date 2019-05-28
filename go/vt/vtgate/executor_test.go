@@ -2361,7 +2361,7 @@ func TestDebugVSchema(t *testing.T) {
 	executor.ServeHTTP(resp, req)
 	v := make(map[string]interface{})
 	if err := json.Unmarshal(resp.Body.Bytes(), &v); err != nil {
-		t.Fatalf("Unmarshal on %s failed: %v", resp.Body.String(), err)
+		t.Fatalf("Unmarhsal on %s failed: %v", resp.Body.String(), err)
 	}
 	if _, ok := v["routing_rules"]; !ok {
 		t.Errorf("routing rules missing: %v", resp.Body.String())

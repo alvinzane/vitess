@@ -75,7 +75,7 @@ spec:
       containers:
         - name: vtgate
           image: vitess/vtgate:{{$vitessTag}}
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           readinessProbe:
             httpGet:
               path: /debug/health

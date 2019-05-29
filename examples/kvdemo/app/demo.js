@@ -6,12 +6,8 @@ function DemoController($scope, $http) {
     $scope.samples = [
         "select name, description from customer c join orders o on c.cid = o.cid join product p on o.pid = p.pid",
         "insert into product(pid, description) values(3, 'mouse')",
-        "select name, description from customer c join orders o on c.cid = o.cid join product p on o.pid = p.pid",
-        "select name, category, o.oid from merchant m join orders o on m.name = o.mname",
-        "select name, category, o.oid from merchant m join orders o on m.name = o.mname",
+        "select m.mname, category, o.oid from merchant m join orders o on m.mname = o.mname",
         "update orders set mname='newegg' where oid=1",
-        "select name, description from customer c join orders o on c.cid = o.cid join product p on o.pid = p.pid",
-        "select name, description from customer c join orders o on c.cid = o.cid join lookup.product p on o.pid = p.pid",
         "select pid, description, amount from product join sales on product.pid = sales.pid",
         "select description, kount, amount from product join sales on product.pid = sales.pid order by amount desc limit 1",
         "insert into orders(oid, cid, mname, pid, price) values(4, 6, 'monoprice', 1, 50)",

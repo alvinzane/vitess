@@ -167,7 +167,7 @@ spec:
 
 - name: "init-mysql"
   image: "vitess/mysqlctld:{{$vitessTag}}"
-  imagePullPolicy: IfNotPresent
+  imagePullPolicy: Always
   volumeMounts:
     - name: vtdataroot
       mountPath: "/vtdataroot"
@@ -211,7 +211,7 @@ spec:
 
 - name: init-vttablet
   image: "vitess/vtctl:{{$vitessTag}}"
-  imagePullPolicy: IfNotPresent
+  imagePullPolicy: Always
   volumeMounts:
     - name: vtdataroot
       mountPath: "/vtdataroot"
@@ -276,7 +276,7 @@ spec:
 
 - name: vttablet
   image: "vitess/vttablet:{{$vitessTag}}"
-  imagePullPolicy: IfNotPresent
+  imagePullPolicy: Always
   readinessProbe:
     httpGet:
       path: /debug/health
@@ -456,7 +456,7 @@ spec:
 
 - name: mysql
   image: {{.mysqlImage | default $defaultVttablet.mysqlImage | quote}}
-  imagePullPolicy: IfNotPresent
+  imagePullPolicy: Always
   readinessProbe:
     exec:
       command: ["mysqladmin", "ping", "-uroot", "--socket=/vtdataroot/tabletdata/mysql.sock"]
@@ -534,7 +534,7 @@ spec:
 
 - name: logrotate
   image: vitess/logrotate:helm-1.0.6
-  imagePullPolicy: IfNotPresent
+  imagePullPolicy: Always
   volumeMounts:
     - name: vtdataroot
       mountPath: /vtdataroot
@@ -548,7 +548,7 @@ spec:
 
 - name: error-log
   image: vitess/logtail:helm-1.0.6
-  imagePullPolicy: IfNotPresent
+  imagePullPolicy: Always
 
   env:
   - name: TAIL_FILEPATH
@@ -566,7 +566,7 @@ spec:
 
 - name: slow-log
   image: vitess/logtail:helm-1.0.6
-  imagePullPolicy: IfNotPresent
+  imagePullPolicy: Always
 
   env:
   - name: TAIL_FILEPATH
@@ -584,7 +584,7 @@ spec:
 
 - name: general-log
   image: vitess/logtail:helm-1.0.6
-  imagePullPolicy: IfNotPresent
+  imagePullPolicy: Always
 
   env:
   - name: TAIL_FILEPATH

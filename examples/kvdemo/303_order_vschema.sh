@@ -54,4 +54,4 @@ $kvtctl ApplyVSchema -vschema='
       }
     }
   }' merchant
-$kvtctl ApplyRoutingRules -rules='{"rules":[{"fromTable":"orders","toTables":["customer.orders","merchant.orders"]}]}'
+$kvtctl ApplyRoutingRules -rules='{"rules":[{"fromTable":"orders","toTables":["customer.orders","merchant.orders"]}, {"fromTable":"product","toTables":["product.product","customer.product"]}]}'

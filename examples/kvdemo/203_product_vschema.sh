@@ -77,8 +77,8 @@ $kvtctl ApplyVSchema -vschema='
         ],
         "column_list_authoritative": true
       },
-			"product": {
-				"type": "reference"
-			}
+      "product": {
+        "type": "reference"
+      }
     }
   }' customer

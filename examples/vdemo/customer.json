@@ -1,0 +1,60 @@
+{
+  "sharded": true,
+  "vindexes": {
+    "hash": {
+      "type": "hash"
+    }
+  },
+  "tables": {
+    "customer": {
+      "column_vindexes": [
+        {
+          "column": "cid",
+          "name": "hash"
+        }
+      ],
+      "auto_increment": {
+        "column": "cid",
+        "sequence": "customer_seq"
+      },
+      "columns": [
+        {
+          "name": "cid"
+        },{
+          "name": "name",
+          "type": "VARCHAR"
+        },{
+          "name": "balance"
+        }
+      ],
+      "column_list_authoritative": true
+    },
+    "orders": {
+      "column_vindexes": [
+        {
+          "column": "cid",
+          "name": "hash"
+        }
+      ],
+      "auto_increment": {
+        "column": "oid",
+        "sequence": "order_seq"
+      },
+      "columns": [
+        {
+          "name": "oid"
+        },{
+          "name": "cid"
+        },{
+          "name": "mname",
+          "type": "VARCHAR"
+        },{
+          "name": "pid"
+        },{
+          "name": "price"
+        }
+      ],
+      "column_list_authoritative": true
+    }
+  }
+}

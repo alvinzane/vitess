@@ -1,0 +1,21 @@
+{
+  "tables": {
+    "product": {
+      "columns": [
+        {
+          "name": "pid"
+        },{
+          "name": "description",
+          "type": "VARCHAR"
+        }
+      ],
+      "column_list_authoritative": true
+    },
+    "customer_seq": {
+      "type": "sequence"
+    },
+    "order_seq": {
+      "type": "sequence"
+    }
+  }
+}

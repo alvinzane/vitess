@@ -1347,6 +1347,15 @@ func (e *Executor) ParseDestinationTarget(targetString string) (string, topodata
 	return destKeyspace, destTabletType, dest, err
 }
 
+func isInsert(stmt sqlparser.Statement) bool {
+	switch stmt.(type) {
+	case *sqlparser.Insert:
+		return true
+	default:
+		return false
+	}
+}
+
 // getPlan computes the plan for the given query. If one is in
 // the cache, it reuses it.
 func (e *Executor) getPlan(vcursor *vcursorImpl, sql string, comments sqlparser.MarginComments, bindVars map[string]*querypb.BindVariable, skipQueryPlanCache bool, logStats *LogStats) (*engine.Plan, error) {
@@ -1372,7 +1381,7 @@ func (e *Executor) getPlan(vcursor *vcursorImpl, sql string, comments sqlparser.
 		if err != nil {
 			return nil, err
 		}
-		if !skipQueryPlanCache && !sqlparser.SkipQueryPlanCacheDirective(stmt) {
+		if !isInsert(stmt) && !skipQueryPlanCache && !sqlparser.SkipQueryPlanCacheDirective(stmt) {
 			e.plans.Set(planKey, plan)
 		}
 		return plan, nil
@@ -1395,7 +1404,7 @@ func (e *Executor) getPlan(vcursor *vcursorImpl, sql string, comments sqlparser.
 	if err != nil {
 		return nil, err
 	}
-	if !skipQueryPlanCache && !sqlparser.SkipQueryPlanCacheDirective(stmt) {
+	if !isInsert(stmt) && !skipQueryPlanCache && !sqlparser.SkipQueryPlanCacheDirective(stmt) {
 		e.plans.Set(planKey, plan)
 	}
 	return plan, nil

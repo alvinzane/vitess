@@ -52,6 +52,8 @@ require (
 	github.com/mattn/go-runewidth v0.0.1 // indirect
 	github.com/minio/minio-go v0.0.0-20190131015406-c8a261de75c1
 	github.com/mitchellh/go-testing-interface v1.0.0 // indirect
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/olekukonko/tablewriter v0.0.0-20160115111002-cca8bbc07984
 	github.com/opentracing-contrib/go-grpc v0.0.0-20180928155321-4b5a12d3ff02
 	github.com/opentracing/opentracing-go v1.1.0
@@ -93,6 +95,7 @@ require (
 	gopkg.in/DataDog/dd-trace-go.v1 v1.17.0
 	gopkg.in/asn1-ber.v1 v1.0.0-20150924051756-4e86f4367175 // indirect
 	gopkg.in/ldap.v2 v2.5.0
+	gopkg.in/yaml.v2 v2.2.7
 	honnef.co/go/tools v0.0.1-2019.2.3
 	mvdan.cc/unparam v0.0.0-20191111180625-960b1ec0f2c2 // indirect
 	sourcegraph.com/sqs/pbtypes v1.0.0 // indirect
